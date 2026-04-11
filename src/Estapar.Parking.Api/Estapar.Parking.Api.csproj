@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.10" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
+    <ProjectReference Include="..\Estapar.Parking.Infrastructure\Estapar.Parking.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

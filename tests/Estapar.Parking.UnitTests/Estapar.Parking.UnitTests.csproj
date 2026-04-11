@@ -18,4 +18,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Estapar.Parking.Domain\Estapar.Parking.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
+  </ItemGroup>
+
 </Project>
