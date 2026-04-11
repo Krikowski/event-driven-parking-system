@@ -1,19 +1,22 @@
 ﻿using Estapar.Parking.Domain.Entities;
-using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Enums;
+using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.UnitTests.Domain.Entities;
 
-public class ParkingSessionTests {
+public class ParkingSessionTests
+{
     [Fact]
-    public void Constructor_ShouldNormalizeLicensePlate() {
+    public void Constructor_ShouldNormalizeLicensePlate()
+    {
         var session = new ParkingSession(" abc1234 ", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
         Assert.Equal("ABC1234", session.LicensePlate);
     }
 
     [Fact]
-    public void Complete_ShouldThrowDomainException_WhenSessionIsAlreadyCompleted() {
+    public void Complete_ShouldThrowDomainException_WhenSessionIsAlreadyCompleted()
+    {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
         session.Complete(new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc), 10m);
@@ -25,7 +28,8 @@ public class ParkingSessionTests {
     }
 
     [Fact]
-    public void Complete_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime() {
+    public void Complete_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime()
+    {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
         Action act = () => session.Complete(new DateTime(2025, 1, 1, 11, 59, 59, DateTimeKind.Utc), 10m);
@@ -35,7 +39,8 @@ public class ParkingSessionTests {
     }
 
     [Fact]
-    public void Complete_ShouldSetExitTimeChargedAmountAndCompletedStatus() {
+    public void Complete_ShouldSetExitTimeChargedAmountAndCompletedStatus()
+    {
         var exitTimeUtc = new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc);
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
@@ -47,7 +52,8 @@ public class ParkingSessionTests {
     }
 
     [Fact]
-    public void AssignParkingSpot_ShouldThrowDomainException_WhenSessionAlreadyHasAnAssignedSpot() {
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSessionAlreadyHasAnAssignedSpot()
+    {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
         session.AssignParkingSpot(1, "A");
@@ -59,7 +65,8 @@ public class ParkingSessionTests {
     }
 
     [Fact]
-    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotSectorDoesNotMatchSessionSector() {
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotSectorDoesNotMatchSessionSector()
+    {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
         Action act = () => session.AssignParkingSpot(1, "B");

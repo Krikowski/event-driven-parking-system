@@ -1,6 +1,7 @@
 ﻿namespace Estapar.Parking.Domain.Policies;
 
-public interface IPricingPolicy {
+public interface IPricingPolicy
+{
     /// <summary>
     /// Calculates the pricing multiplier based on the occupancy percentage at the moment of entry.
     /// </summary>

@@ -3,7 +3,8 @@ using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
 
-public class ParkingSession {
+public class ParkingSession
+{
     public string LicensePlate { get; }
     public string SectorCode { get; }
     public int? ParkingSpotId { get; private set; }
@@ -15,20 +16,25 @@ public class ParkingSession {
 
     public bool HasAssignedSpot => ParkingSpotId.HasValue;
 
+
     public ParkingSession(
         string licensePlate,
         string sectorCode,
         DateTime entryTimeUtc,
-        decimal frozenHourlyRate) {
-        if (string.IsNullOrWhiteSpace(licensePlate)) {
+        decimal frozenHourlyRate)
+    {
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
             throw new DomainException("License plate is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(sectorCode)) {
+        if (string.IsNullOrWhiteSpace(sectorCode))
+        {
             throw new DomainException("Sector code is required.");
         }
 
-        if (frozenHourlyRate < 0) {
+        if (frozenHourlyRate < 0)
+        {
             throw new DomainException("Frozen hourly rate cannot be negative.");
         }
 
@@ -39,40 +45,50 @@ public class ParkingSession {
         Status = ParkingSessionStatus.Active;
     }
 
-    public void AssignParkingSpot(int parkingSpotId, string spotSectorCode) {
-        if (Status != ParkingSessionStatus.Active) {
+    public void AssignParkingSpot(int parkingSpotId, string spotSectorCode)
+    {
+        if (Status != ParkingSessionStatus.Active)
+        {
             throw new DomainException("Cannot assign a parking spot to a completed session.");
         }
 
-        if (HasAssignedSpot) {
+        if (HasAssignedSpot)
+        {
             throw new DomainException("Parking session already has an assigned spot.");
         }
 
-        if (parkingSpotId <= 0) {
+        if (parkingSpotId <= 0)
+        {
             throw new DomainException("Parking spot id must be greater than zero.");
         }
 
-        if (string.IsNullOrWhiteSpace(spotSectorCode)) {
+        if (string.IsNullOrWhiteSpace(spotSectorCode))
+        {
             throw new DomainException("Parking spot sector code is required.");
         }
 
-        if (!SectorCode.Equals(spotSectorCode.Trim().ToUpperInvariant(), StringComparison.Ordinal)) {
+        if (!SectorCode.Equals(spotSectorCode.Trim().ToUpperInvariant(), StringComparison.Ordinal))
+        {
             throw new DomainException("Parking spot sector does not match session sector.");
         }
 
         ParkingSpotId = parkingSpotId;
     }
 
-    public void Complete(DateTime exitTimeUtc, decimal chargedAmount) {
-        if (Status == ParkingSessionStatus.Completed) {
+    public void Complete(DateTime exitTimeUtc, decimal chargedAmount)
+    {
+        if (Status == ParkingSessionStatus.Completed)
+        {
             throw new DomainException("Parking session is already completed.");
         }
 
-        if (exitTimeUtc < EntryTimeUtc) {
+        if (exitTimeUtc < EntryTimeUtc)
+        {
             throw new DomainException("Exit time cannot be earlier than entry time.");
         }
 
-        if (chargedAmount < 0) {
+        if (chargedAmount < 0)
+        {
             throw new DomainException("Charged amount cannot be negative.");
         }
 
@@ -81,7 +97,8 @@ public class ParkingSession {
         Status = ParkingSessionStatus.Completed;
     }
 
-    private static string NormalizeLicensePlate(string licensePlate) {
+    private static string NormalizeLicensePlate(string licensePlate)
+    {
         return licensePlate.Trim().ToUpperInvariant();
     }
 }

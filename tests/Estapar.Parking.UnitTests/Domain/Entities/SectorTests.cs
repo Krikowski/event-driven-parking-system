@@ -3,9 +3,11 @@ using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.UnitTests.Domain.Entities;
 
-public class SectorTests {
+public class SectorTests
+{
     [Fact]
-    public void ConsumeCapacity_ShouldThrowDomainException_WhenSectorIsFull() {
+    public void ConsumeCapacity_ShouldThrowDomainException_WhenSectorIsFull()
+    {
         var sector = new Sector("A", 1, 10m);
 
         sector.ConsumeCapacity();
@@ -17,7 +19,8 @@ public class SectorTests {
     }
 
     [Fact]
-    public void ReleaseCapacity_ShouldDecreaseAllocatedCapacity_WhenCapacityWasPreviouslyConsumed() {
+    public void ReleaseCapacity_ShouldDecreaseAllocatedCapacity_WhenCapacityWasPreviouslyConsumed()
+    {
         var sector = new Sector("A", 2, 10m);
 
         sector.ConsumeCapacity();
@@ -27,7 +30,8 @@ public class SectorTests {
     }
 
     [Fact]
-    public void ReleaseCapacity_ShouldThrowDomainException_WhenThereIsNoAllocatedCapacity() {
+    public void ReleaseCapacity_ShouldThrowDomainException_WhenThereIsNoAllocatedCapacity()
+    {
         var sector = new Sector("A", 2, 10m);
 
         Action act = () => sector.ReleaseCapacity();

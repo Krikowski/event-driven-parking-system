@@ -3,7 +3,8 @@ using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
 
-public class VehicleEvent {
+public class VehicleEvent
+{
     public ParkingEventType EventType { get; }
     public string LicensePlate { get; }
     public string PayloadSnapshot { get; }
@@ -13,12 +14,15 @@ public class VehicleEvent {
         ParkingEventType eventType,
         string licensePlate,
         string payloadSnapshot,
-        DateTime processedAtUtc) {
-        if (string.IsNullOrWhiteSpace(licensePlate)) {
+        DateTime processedAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
             throw new DomainException("License plate is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(payloadSnapshot)) {
+        if (string.IsNullOrWhiteSpace(payloadSnapshot))
+        {
             throw new DomainException("Payload snapshot is required.");
         }
 
