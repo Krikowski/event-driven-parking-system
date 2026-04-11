@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Enums;
+using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
@@ -36,9 +36,14 @@ public class VehicleEvent
             throw new DomainException("Processed timestamp is required.");
         }
 
+        if (processedAtUtc.Kind != DateTimeKind.Utc)
+        {
+            throw new DomainException("Processed timestamp must be informed in UTC.");
+        }
+
         EventType = eventType;
         LicensePlate = licensePlate.Trim().ToUpperInvariant();
-        PayloadSnapshot = payloadSnapshot;
+        PayloadSnapshot = payloadSnapshot.Trim();
         ProcessedAtUtc = processedAtUtc;
     }
 }

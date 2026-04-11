@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Entities;
+using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.UnitTests.Domain.Entities;
@@ -38,5 +38,27 @@ public class SectorTests
 
         var exception = Assert.Throws<DomainException>(act);
         Assert.Equal("Sector has no allocated capacity to release.", exception.Message);
+    }
+
+    [Fact]
+    public void CalculateOccupancyPercentage_ShouldReturnZero_WhenThereIsNoAllocatedCapacity()
+    {
+        var sector = new Sector("A", 4, 10m);
+
+        var occupancyPercentage = sector.CalculateOccupancyPercentage();
+
+        Assert.Equal(0m, occupancyPercentage);
+    }
+
+    [Fact]
+    public void CalculateOccupancyPercentage_ShouldReturnExpectedPercentage_WhenCapacityWasConsumed()
+    {
+        var sector = new Sector("A", 4, 10m);
+        sector.ConsumeCapacity();
+        sector.ConsumeCapacity();
+
+        var occupancyPercentage = sector.CalculateOccupancyPercentage();
+
+        Assert.Equal(50m, occupancyPercentage);
     }
 }

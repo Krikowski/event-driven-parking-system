@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Enums;
+using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
@@ -24,39 +24,16 @@ public class ParkingSession
         DateTime entryTimeUtc,
         decimal frozenHourlyRate)
     {
-        if (string.IsNullOrWhiteSpace(licensePlate))
-        {
-            throw new DomainException("License plate is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(sectorCode))
-        {
-            throw new DomainException("Sector code is required.");
-        }
-
-        if (entryTimeUtc == default)
-        {
-            throw new DomainException("Entry time is required.");
-        }
-
-        if (frozenHourlyRate < 0)
-        {
-            throw new DomainException("Frozen hourly rate cannot be negative.");
-        }
-
         LicensePlate = NormalizeLicensePlate(licensePlate);
-        SectorCode = sectorCode.Trim().ToUpperInvariant();
-        EntryTimeUtc = entryTimeUtc;
-        FrozenHourlyRate = frozenHourlyRate;
+        SectorCode = NormalizeSectorCode(sectorCode);
+        EntryTimeUtc = EnsureUtc(entryTimeUtc, "Entry time");
+        FrozenHourlyRate = EnsureNonNegative(frozenHourlyRate, "Frozen hourly rate");
         Status = ParkingSessionStatus.Active;
     }
 
     public void AssignParkingSpot(int parkingSpotId, string spotSectorCode)
     {
-        if (!IsActive)
-        {
-            throw new DomainException("Cannot assign a parking spot to a closed session.");
-        }
+        EnsureSessionIsActiveForSpotAssignment();
 
         if (HasAssignedSpot)
         {
@@ -68,12 +45,9 @@ public class ParkingSession
             throw new DomainException("Parking spot id must be greater than zero.");
         }
 
-        if (string.IsNullOrWhiteSpace(spotSectorCode))
-        {
-            throw new DomainException("Parking spot sector code is required.");
-        }
+        var normalizedSpotSectorCode = NormalizeSectorCode(spotSectorCode, "Parking spot sector code");
 
-        if (!SectorCode.Equals(spotSectorCode.Trim().ToUpperInvariant(), StringComparison.Ordinal))
+        if (!SectorCode.Equals(normalizedSpotSectorCode, StringComparison.Ordinal))
         {
             throw new DomainException("Parking spot sector does not match session sector.");
         }
@@ -83,28 +57,78 @@ public class ParkingSession
 
     public void Close(DateTime exitTimeUtc, decimal chargedAmount)
     {
-        if (IsClosed)
-        {
-            throw new DomainException("Parking session is already closed.");
-        }
+        EnsureSessionIsOpen();
 
-        if (exitTimeUtc < EntryTimeUtc)
+        var validatedExitTimeUtc = EnsureUtc(exitTimeUtc, "Exit time");
+
+        if (validatedExitTimeUtc < EntryTimeUtc)
         {
             throw new DomainException("Exit time cannot be earlier than entry time.");
         }
 
-        if (chargedAmount < 0)
-        {
-            throw new DomainException("Charged amount cannot be negative.");
-        }
-
-        ExitTimeUtc = exitTimeUtc;
-        ChargedAmount = chargedAmount;
+        ExitTimeUtc = validatedExitTimeUtc;
+        ChargedAmount = EnsureNonNegative(chargedAmount, "Charged amount");
         Status = ParkingSessionStatus.Closed;
+    }
+
+    private void EnsureSessionIsOpen()
+    {
+        if (IsClosed)
+        {
+            throw new DomainException("Parking session is already closed.");
+        }
+    }
+
+    private void EnsureSessionIsActiveForSpotAssignment()
+    {
+        if (!IsActive)
+        {
+            throw new DomainException("Cannot assign a parking spot to a closed session.");
+        }
     }
 
     private static string NormalizeLicensePlate(string licensePlate)
     {
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
+            throw new DomainException("License plate is required.");
+        }
+
         return licensePlate.Trim().ToUpperInvariant();
+    }
+
+    private static string NormalizeSectorCode(string sectorCode, string fieldName = "Sector code")
+    {
+        if (string.IsNullOrWhiteSpace(sectorCode))
+        {
+            throw new DomainException($"{fieldName} is required.");
+        }
+
+        return sectorCode.Trim().ToUpperInvariant();
+    }
+
+    private static DateTime EnsureUtc(DateTime value, string fieldName)
+    {
+        if (value == default)
+        {
+            throw new DomainException($"{fieldName} is required.");
+        }
+
+        if (value.Kind != DateTimeKind.Utc)
+        {
+            throw new DomainException($"{fieldName} must be informed in UTC.");
+        }
+
+        return value;
+    }
+
+    private static decimal EnsureNonNegative(decimal value, string fieldName)
+    {
+        if (value < 0)
+        {
+            throw new DomainException($"{fieldName} cannot be negative.");
+        }
+
+        return value;
     }
 }

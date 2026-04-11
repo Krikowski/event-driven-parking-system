@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Exceptions;
+using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Policies;
 
@@ -59,9 +59,25 @@ public class PricingPolicy : IPricingPolicy
 
     public void ValidateTimeRange(DateTime entryTimeUtc, DateTime exitTimeUtc)
     {
+        EnsureUtc(entryTimeUtc, "Entry time");
+        EnsureUtc(exitTimeUtc, "Exit time");
+
         if (exitTimeUtc < entryTimeUtc)
         {
             throw new DomainException("Exit time cannot be earlier than entry time.");
+        }
+    }
+
+    private static void EnsureUtc(DateTime value, string fieldName)
+    {
+        if (value == default)
+        {
+            throw new DomainException($"{fieldName} is required.");
+        }
+
+        if (value.Kind != DateTimeKind.Utc)
+        {
+            throw new DomainException($"{fieldName} must be informed in UTC.");
         }
     }
 }
