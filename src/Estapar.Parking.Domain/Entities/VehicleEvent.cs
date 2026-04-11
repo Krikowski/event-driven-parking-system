@@ -16,6 +16,11 @@ public class VehicleEvent
         string payloadSnapshot,
         DateTime processedAtUtc)
     {
+        if (!Enum.IsDefined(typeof(ParkingEventType), eventType))
+        {
+            throw new DomainException("Parking event type is invalid.");
+        }
+
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
             throw new DomainException("License plate is required.");
@@ -26,8 +31,13 @@ public class VehicleEvent
             throw new DomainException("Payload snapshot is required.");
         }
 
-        LicensePlate = licensePlate.Trim().ToUpperInvariant();
+        if (processedAtUtc == default)
+        {
+            throw new DomainException("Processed timestamp is required.");
+        }
+
         EventType = eventType;
+        LicensePlate = licensePlate.Trim().ToUpperInvariant();
         PayloadSnapshot = payloadSnapshot;
         ProcessedAtUtc = processedAtUtc;
     }
