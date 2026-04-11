@@ -3,7 +3,8 @@ using Estapar.Parking.Domain.Policies;
 
 namespace Estapar.Parking.UnitTests.Domain.Policies;
 
-public class PricingPolicyTests {
+public class PricingPolicyTests
+{
     private readonly PricingPolicy _pricingPolicy = new();
 
     [Theory]
@@ -14,7 +15,8 @@ public class PricingPolicyTests {
     [InlineData(100.00, 1.25)]
     public void CalculateOccupancyMultiplier_ShouldReturnExpectedMultiplier_WhenOccupancyIsAtBoundary(
         decimal occupancyPercentage,
-        decimal expectedMultiplier) {
+        decimal expectedMultiplier)
+    {
         var multiplier = _pricingPolicy.CalculateOccupancyMultiplier(occupancyPercentage);
 
         Assert.Equal(expectedMultiplier, multiplier);
@@ -29,7 +31,8 @@ public class PricingPolicyTests {
         int hours,
         int minutes,
         int seconds,
-        decimal expectedAmount) {
+        decimal expectedAmount)
+    {
         const decimal frozenHourlyRate = 10m;
         var entryTimeUtc = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var exitTimeUtc = entryTimeUtc
@@ -43,7 +46,8 @@ public class PricingPolicyTests {
     }
 
     [Fact]
-    public void CalculateChargedAmount_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime() {
+    public void CalculateChargedAmount_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime()
+    {
         var entryTimeUtc = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var exitTimeUtc = entryTimeUtc.AddSeconds(-1);
 

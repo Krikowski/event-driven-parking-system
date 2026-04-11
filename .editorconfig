@@ -1,0 +1,96 @@
+root = true
+
+# C# files
+[*.cs]
+
+############################
+# FORMATAÇÃO
+############################
+
+indent_style = space
+indent_size = 4
+
+# Chaves na linha de baixo (padrão .NET)
+csharp_new_line_before_open_brace = all
+
+# Espaçamento
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+
+############################
+# USINGS
+############################
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = true
+
+############################
+# VAR vs EXPLÍCITO
+############################
+
+# Use var quando o tipo é óbvio
+csharp_style_var_when_type_is_apparent = true:suggestion
+
+# Não use var quando não é óbvio
+csharp_style_var_elsewhere = false:suggestion
+
+############################
+# EXPRESSÃO
+############################
+
+# Preferir expression-bodied apenas quando simples
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_constructors = false:silent
+
+############################
+# NOMENCLATURA
+############################
+
+# Interfaces com prefixo I
+dotnet_naming_rule.interfaces_should_start_with_i.severity = suggestion
+dotnet_naming_rule.interfaces_should_start_with_i.symbols = interfaces
+dotnet_naming_rule.interfaces_should_start_with_i.style = prefix_i
+
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.prefix_i.required_prefix = I
+
+# Campos privados com underscore (_campo)
+dotnet_naming_rule.private_fields_should_have_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_should_have_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_should_have_underscore.style = underscore_prefix
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.required_prefix = _
+
+############################
+# NULL & SEGURANÇA
+############################
+
+# Preferir null-coalescing quando possível
+dotnet_style_coalesce_expression = true:suggestion
+
+# Evitar null explícito desnecessário
+dotnet_style_null_propagation = true:suggestion
+
+############################
+# QUALIDADE
+############################
+
+# Preferir readonly quando possível
+dotnet_style_readonly_field = true:suggestion
+
+# Preferir inicialização inline
+dotnet_style_object_initializer = true:suggestion
+
+############################
+# LINHAS
+############################
+
+# Linha em branco entre membros
+csharp_style_allow_blank_line_after_token_in_arrow_expression_clause = true
+
+############################
+# FINAL
+############################

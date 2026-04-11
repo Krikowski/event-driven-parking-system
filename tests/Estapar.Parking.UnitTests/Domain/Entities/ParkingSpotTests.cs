@@ -3,9 +3,11 @@ using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.UnitTests.Domain.Entities;
 
-public class ParkingSpotTests {
+public class ParkingSpotTests
+{
     [Fact]
-    public void Occupy_ShouldThrowDomainException_WhenSpotIsAlreadyOccupied() {
+    public void Occupy_ShouldThrowDomainException_WhenSpotIsAlreadyOccupied()
+    {
         var spot = new ParkingSpot(1, "A", -23.561684m, -46.655981m);
 
         spot.Occupy();
@@ -17,7 +19,8 @@ public class ParkingSpotTests {
     }
 
     [Fact]
-    public void Release_ShouldMakeSpotAvailable_WhenSpotIsOccupied() {
+    public void Release_ShouldMakeSpotAvailable_WhenSpotIsOccupied()
+    {
         var spot = new ParkingSpot(1, "A", -23.561684m, -46.655981m);
 
         spot.Occupy();
@@ -27,7 +30,8 @@ public class ParkingSpotTests {
     }
 
     [Fact]
-    public void Release_ShouldThrowDomainException_WhenSpotIsAlreadyAvailable() {
+    public void Release_ShouldThrowDomainException_WhenSpotIsAlreadyAvailable()
+    {
         var spot = new ParkingSpot(1, "A", -23.561684m, -46.655981m);
 
         Action act = () => spot.Release();
