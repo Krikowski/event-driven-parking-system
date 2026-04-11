@@ -15,7 +15,8 @@ public class ParkingSession
     public decimal? ChargedAmount { get; private set; }
 
     public bool HasAssignedSpot => ParkingSpotId.HasValue;
-
+    public bool IsActive => Status == ParkingSessionStatus.Active;
+    public bool IsClosed => Status == ParkingSessionStatus.Closed;
 
     public ParkingSession(
         string licensePlate,
@@ -33,6 +34,11 @@ public class ParkingSession
             throw new DomainException("Sector code is required.");
         }
 
+        if (entryTimeUtc == default)
+        {
+            throw new DomainException("Entry time is required.");
+        }
+
         if (frozenHourlyRate < 0)
         {
             throw new DomainException("Frozen hourly rate cannot be negative.");
@@ -47,9 +53,9 @@ public class ParkingSession
 
     public void AssignParkingSpot(int parkingSpotId, string spotSectorCode)
     {
-        if (Status != ParkingSessionStatus.Active)
+        if (!IsActive)
         {
-            throw new DomainException("Cannot assign a parking spot to a completed session.");
+            throw new DomainException("Cannot assign a parking spot to a closed session.");
         }
 
         if (HasAssignedSpot)
@@ -75,11 +81,11 @@ public class ParkingSession
         ParkingSpotId = parkingSpotId;
     }
 
-    public void Complete(DateTime exitTimeUtc, decimal chargedAmount)
+    public void Close(DateTime exitTimeUtc, decimal chargedAmount)
     {
-        if (Status == ParkingSessionStatus.Completed)
+        if (IsClosed)
         {
-            throw new DomainException("Parking session is already completed.");
+            throw new DomainException("Parking session is already closed.");
         }
 
         if (exitTimeUtc < EntryTimeUtc)
@@ -94,7 +100,7 @@ public class ParkingSession
 
         ExitTimeUtc = exitTimeUtc;
         ChargedAmount = chargedAmount;
-        Status = ParkingSessionStatus.Completed;
+        Status = ParkingSessionStatus.Closed;
     }
 
     private static string NormalizeLicensePlate(string licensePlate)

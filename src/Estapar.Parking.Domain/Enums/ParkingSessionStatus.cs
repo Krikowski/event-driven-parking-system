@@ -3,5 +3,5 @@
 public enum ParkingSessionStatus
 {
     Active = 1,
-    Completed = 2
+    Closed = 2
 }

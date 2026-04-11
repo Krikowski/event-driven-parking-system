@@ -15,40 +15,40 @@ public class ParkingSessionTests
     }
 
     [Fact]
-    public void Complete_ShouldThrowDomainException_WhenSessionIsAlreadyCompleted()
+    public void Close_ShouldThrowDomainException_WhenSessionIsAlreadyClosed()
     {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
-        session.Complete(new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc), 10m);
+        session.Close(new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc), 10m);
 
-        Action act = () => session.Complete(new DateTime(2025, 1, 1, 14, 0, 0, DateTimeKind.Utc), 20m);
+        Action act = () => session.Close(new DateTime(2025, 1, 1, 14, 0, 0, DateTimeKind.Utc), 20m);
 
         var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Parking session is already completed.", exception.Message);
+        Assert.Equal("Parking session is already closed.", exception.Message);
     }
 
     [Fact]
-    public void Complete_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime()
+    public void Close_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime()
     {
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
-        Action act = () => session.Complete(new DateTime(2025, 1, 1, 11, 59, 59, DateTimeKind.Utc), 10m);
+        Action act = () => session.Close(new DateTime(2025, 1, 1, 11, 59, 59, DateTimeKind.Utc), 10m);
 
         var exception = Assert.Throws<DomainException>(act);
         Assert.Equal("Exit time cannot be earlier than entry time.", exception.Message);
     }
 
     [Fact]
-    public void Complete_ShouldSetExitTimeChargedAmountAndCompletedStatus()
+    public void Close_ShouldSetExitTimeChargedAmountAndClosedStatus()
     {
         var exitTimeUtc = new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc);
         var session = new ParkingSession("ABC1234", "A", new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), 10m);
 
-        session.Complete(exitTimeUtc, 10m);
+        session.Close(exitTimeUtc, 10m);
 
         Assert.Equal(exitTimeUtc, session.ExitTimeUtc);
         Assert.Equal(10m, session.ChargedAmount);
-        Assert.Equal(ParkingSessionStatus.Completed, session.Status);
+        Assert.Equal(ParkingSessionStatus.Closed, session.Status);
     }
 
     [Fact]
