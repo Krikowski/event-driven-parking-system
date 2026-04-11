@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Exceptions;
+using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
 
@@ -23,15 +23,8 @@ public class ParkingSpot
             throw new DomainException("Parking spot sector code is required.");
         }
 
-        if (latitude < -90 || latitude > 90)
-        {
-            throw new DomainException("Parking spot latitude is out of range.");
-        }
-
-        if (longitude < -180 || longitude > 180)
-        {
-            throw new DomainException("Parking spot longitude is out of range.");
-        }
+        EnsureLatitudeIsValid(latitude);
+        EnsureLongitudeIsValid(longitude);
 
         Id = id;
         SectorCode = sectorCode.Trim().ToUpperInvariant();
@@ -58,5 +51,21 @@ public class ParkingSpot
         }
 
         IsOccupied = false;
+    }
+
+    private static void EnsureLatitudeIsValid(decimal latitude)
+    {
+        if (latitude < -90 || latitude > 90)
+        {
+            throw new DomainException("Parking spot latitude is out of range.");
+        }
+    }
+
+    private static void EnsureLongitudeIsValid(decimal longitude)
+    {
+        if (longitude < -180 || longitude > 180)
+        {
+            throw new DomainException("Parking spot longitude is out of range.");
+        }
     }
 }

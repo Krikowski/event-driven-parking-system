@@ -1,4 +1,4 @@
-﻿using Estapar.Parking.Domain.Exceptions;
+using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Domain.Entities;
 
@@ -37,7 +37,7 @@ public class Sector
 
     public void ConsumeCapacity()
     {
-        if (IsFull)
+        if (!HasAvailableCapacity)
         {
             throw new DomainException("Sector capacity has been reached.");
         }
@@ -57,6 +57,11 @@ public class Sector
 
     public decimal CalculateOccupancyPercentage()
     {
+        if (AllocatedCapacity == 0)
+        {
+            return 0m;
+        }
+
         return (decimal)AllocatedCapacity / MaxCapacity * 100m;
     }
 }
