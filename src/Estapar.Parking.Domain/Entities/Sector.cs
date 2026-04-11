@@ -39,7 +39,7 @@ public class Sector {
 
     public void ReleaseCapacity() {
         if (AllocatedCapacity <= 0) {
-            throw new DomainException("Sector has no occupied spaces to release.");
+            throw new DomainException("Sector has no allocated capacity to release.");
         }
 
         AllocatedCapacity--;
