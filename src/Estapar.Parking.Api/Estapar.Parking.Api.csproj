@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.10" />
+    <ProjectReference Include="..\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
+    <ProjectReference Include="..\Estapar.Parking.Infrastructure\Estapar.Parking.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
-    <ProjectReference Include="..\Estapar.Parking.Infrastructure\Estapar.Parking.Infrastructure.csproj" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
 </Project>
