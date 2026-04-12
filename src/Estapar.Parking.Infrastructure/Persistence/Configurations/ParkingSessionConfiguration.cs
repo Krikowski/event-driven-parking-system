@@ -56,6 +56,11 @@ public sealed class ParkingSessionConfiguration : IEntityTypeConfiguration<Parki
             .IsUnique()
             .HasFilter("[Status] = 1");
 
+        builder.HasIndex(session => session.ParkingSpotId)
+            .HasDatabaseName("IX_ParkingSessions_ActiveParkingSpot")
+            .IsUnique()
+            .HasFilter("[Status] = 1 AND [ParkingSpotId] IS NOT NULL");
+
         builder.HasIndex(session => new { session.LicensePlate, session.Status });
 
         builder.HasIndex(session => new { session.SectorCode, session.EntryTimeUtc });

@@ -6,6 +6,41 @@ namespace Estapar.Parking.UnitTests.Domain.Entities;
 public class SectorTests
 {
     [Fact]
+    public void Constructor_ShouldNormalizeCode()
+    {
+        var sector = new Sector(" a ", 10, 15m);
+
+        Assert.Equal("A", sector.Code);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenCodeIsEmpty()
+    {
+        Action act = () => new Sector(" ", 10, 15m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Sector code is required.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenMaxCapacityIsLessThanOrEqualToZero()
+    {
+        Action act = () => new Sector("A", 0, 15m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Sector max capacity must be greater than zero.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenBasePriceIsNegative()
+    {
+        Action act = () => new Sector("A", 10, -1m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Sector base price cannot be negative.", exception.Message);
+    }
+
+    [Fact]
     public void ConsumeCapacity_ShouldThrowDomainException_WhenSectorIsFull()
     {
         var sector = new Sector("A", 1, 10m);

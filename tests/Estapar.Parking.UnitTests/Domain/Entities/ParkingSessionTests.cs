@@ -1,17 +1,41 @@
 using Estapar.Parking.Domain.Entities;
-using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
+using Estapar.Parking.Domain.Enums;
 
 namespace Estapar.Parking.UnitTests.Domain.Entities;
 
 public class ParkingSessionTests
 {
     [Fact]
-    public void Constructor_ShouldNormalizeLicensePlate()
+    public void Constructor_ShouldNormalizeLicensePlateAndSectorCode()
     {
-        var session = new ParkingSession(" abc1234 ", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = new ParkingSession(
+            " abc1234 ",
+            " a ",
+            CreateUtcDate(12, 0, 0),
+            10m);
 
         Assert.Equal("ABC1234", session.LicensePlate);
+        Assert.Equal("A", session.SectorCode);
+        Assert.Equal(ParkingSessionStatus.Active, session.Status);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenLicensePlateIsEmpty()
+    {
+        Action act = () => new ParkingSession(" ", "A", CreateUtcDate(12, 0, 0), 10m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("License plate is required.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenSectorCodeIsEmpty()
+    {
+        Action act = () => new ParkingSession("ABC1234", " ", CreateUtcDate(12, 0, 0), 10m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Sector code is required.", exception.Message);
     }
 
     [Fact]
@@ -37,22 +61,91 @@ public class ParkingSessionTests
     }
 
     [Fact]
-    public void Close_ShouldThrowDomainException_WhenSessionIsAlreadyClosed()
+    public void AssignParkingSpot_ShouldAssignSpot_WhenSessionIsActiveAndSectorMatches()
     {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = CreateSession();
 
-        session.Close(CreateUtcDate(13, 0, 0), 10m);
+        session.AssignParkingSpot(10, "A");
 
-        Action act = () => session.Close(CreateUtcDate(14, 0, 0), 20m);
+        Assert.True(session.HasAssignedSpot);
+        Assert.Equal(10, session.ParkingSpotId);
+    }
+
+    [Fact]
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenParkingSpotIdIsInvalid()
+    {
+        var session = CreateSession();
+
+        Action act = () => session.AssignParkingSpot(0, "A");
 
         var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Parking session is already closed.", exception.Message);
+        Assert.Equal("Parking spot id must be greater than zero.", exception.Message);
+    }
+
+    [Fact]
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotSectorCodeIsEmpty()
+    {
+        var session = CreateSession();
+
+        Action act = () => session.AssignParkingSpot(1, " ");
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking spot sector code is required.", exception.Message);
+    }
+
+    [Fact]
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotSectorDoesNotMatchSessionSector()
+    {
+        var session = CreateSession();
+
+        Action act = () => session.AssignParkingSpot(1, "B");
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking spot sector does not match session sector.", exception.Message);
+    }
+
+    [Fact]
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotWasAlreadyAssigned()
+    {
+        var session = CreateSession();
+        session.AssignParkingSpot(1, "A");
+
+        Action act = () => session.AssignParkingSpot(2, "A");
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking session already has an assigned spot.", exception.Message);
+    }
+
+    [Fact]
+    public void AssignParkingSpot_ShouldThrowDomainException_WhenSessionIsClosed()
+    {
+        var session = CreateSession();
+        session.Close(CreateUtcDate(13, 0, 0), 10m);
+
+        Action act = () => session.AssignParkingSpot(1, "A");
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Cannot assign a parking spot to a closed session.", exception.Message);
+    }
+
+    [Fact]
+    public void Close_ShouldCloseSession_WhenExitTimeAndAmountAreValid()
+    {
+        var session = CreateSession();
+        var exitTimeUtc = CreateUtcDate(13, 0, 0);
+
+        session.Close(exitTimeUtc, 20m);
+
+        Assert.True(session.IsClosed);
+        Assert.False(session.IsActive);
+        Assert.Equal(exitTimeUtc, session.ExitTimeUtc);
+        Assert.Equal(20m, session.ChargedAmount);
     }
 
     [Fact]
     public void Close_ShouldThrowDomainException_WhenExitTimeIsEarlierThanEntryTime()
     {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = CreateSession();
 
         Action act = () => session.Close(CreateUtcDate(11, 59, 59), 10m);
 
@@ -63,7 +156,7 @@ public class ParkingSessionTests
     [Fact]
     public void Close_ShouldThrowDomainException_WhenExitTimeIsNotUtc()
     {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = CreateSession();
 
         Action act = () => session.Close(
             new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Local),
@@ -74,63 +167,31 @@ public class ParkingSessionTests
     }
 
     [Fact]
-    public void Close_ShouldSetExitTimeChargedAmountAndClosedStatus()
+    public void Close_ShouldThrowDomainException_WhenChargedAmountIsNegative()
     {
-        var exitTimeUtc = CreateUtcDate(13, 0, 0);
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = CreateSession();
 
-        session.Close(exitTimeUtc, 10m);
-
-        Assert.Equal(exitTimeUtc, session.ExitTimeUtc);
-        Assert.Equal(10m, session.ChargedAmount);
-        Assert.Equal(ParkingSessionStatus.Closed, session.Status);
-    }
-
-    [Fact]
-    public void AssignParkingSpot_ShouldThrowDomainException_WhenSessionAlreadyHasAnAssignedSpot()
-    {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
-
-        session.AssignParkingSpot(1, "A");
-
-        Action act = () => session.AssignParkingSpot(2, "A");
+        Action act = () => session.Close(CreateUtcDate(13, 0, 0), -1m);
 
         var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Parking session already has an assigned spot.", exception.Message);
+        Assert.Equal("Charged amount cannot be negative.", exception.Message);
     }
 
     [Fact]
-    public void AssignParkingSpot_ShouldThrowDomainException_WhenSpotSectorDoesNotMatchSessionSector()
+    public void Close_ShouldThrowDomainException_WhenSessionIsAlreadyClosed()
     {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
+        var session = CreateSession();
+        session.Close(CreateUtcDate(13, 0, 0), 20m);
 
-        Action act = () => session.AssignParkingSpot(1, "B");
+        Action act = () => session.Close(CreateUtcDate(14, 0, 0), 30m);
 
         var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Parking spot sector does not match session sector.", exception.Message);
+        Assert.Equal("Parking session is already closed.", exception.Message);
     }
 
-    [Fact]
-    public void AssignParkingSpot_ShouldThrowDomainException_WhenSessionIsClosed()
+    private static ParkingSession CreateSession()
     {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
-        session.Close(CreateUtcDate(13, 0, 0), 10m);
-
-        Action act = () => session.AssignParkingSpot(1, "A");
-
-        var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Cannot assign a parking spot to a closed session.", exception.Message);
-    }
-
-    [Fact]
-    public void AssignParkingSpot_ShouldAssignSpotId_WhenSessionIsActiveAndSpotBelongsToSameSector()
-    {
-        var session = new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
-
-        session.AssignParkingSpot(1, " a ");
-
-        Assert.Equal(1, session.ParkingSpotId);
-        Assert.True(session.HasAssignedSpot);
+        return new ParkingSession("ABC1234", "A", CreateUtcDate(12, 0, 0), 10m);
     }
 
     private static DateTime CreateUtcDate(int hour, int minute, int second)

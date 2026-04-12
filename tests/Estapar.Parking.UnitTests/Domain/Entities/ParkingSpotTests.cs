@@ -6,6 +6,32 @@ namespace Estapar.Parking.UnitTests.Domain.Entities;
 public class ParkingSpotTests
 {
     [Fact]
+    public void Constructor_ShouldNormalizeSectorCode()
+    {
+        var spot = new ParkingSpot(1, " a ", -23.561684m, -46.655981m);
+
+        Assert.Equal("A", spot.SectorCode);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenIdIsLessThanOrEqualToZero()
+    {
+        Action act = () => new ParkingSpot(0, "A", -23.561684m, -46.655981m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking spot id must be greater than zero.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenSectorCodeIsEmpty()
+    {
+        Action act = () => new ParkingSpot(1, " ", -23.561684m, -46.655981m);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking spot sector code is required.", exception.Message);
+    }
+
+    [Fact]
     public void Constructor_ShouldThrowDomainException_WhenLatitudeIsOutOfRange()
     {
         Action act = () => new ParkingSpot(1, "A", 90.01m, -46.655981m);
