@@ -24,6 +24,18 @@ public class PricingPolicyTests
     }
 
     [Theory]
+    [InlineData(-0.01)]
+    [InlineData(100.01)]
+    public void CalculateOccupancyMultiplier_ShouldThrowDomainException_WhenOccupancyIsOutOfRange(
+        decimal occupancyPercentage)
+    {
+        Action act = () => _pricingPolicy.CalculateOccupancyMultiplier(occupancyPercentage);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Occupancy percentage must be between 0 and 100.", exception.Message);
+    }
+
+    [Theory]
     [InlineData(0, 29, 59, 0)]
     [InlineData(0, 30, 0, 0)]
     [InlineData(0, 30, 1, 10)]

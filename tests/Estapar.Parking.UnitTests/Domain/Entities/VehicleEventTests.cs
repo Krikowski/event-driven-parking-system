@@ -19,16 +19,29 @@ public class VehicleEventTests
     }
 
     [Fact]
-    public void Constructor_ShouldThrowDomainException_WhenProcessedAtIsNotUtc()
+    public void Constructor_ShouldThrowDomainException_WhenEventTypeIsInvalid()
+    {
+        Action act = () => new VehicleEvent(
+            (ParkingEventType)999,
+            "ABC1234",
+            "{ \"event_type\": \"ENTRY\" }",
+            CreateUtcDate());
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Parking event type is invalid.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenLicensePlateIsEmpty()
     {
         Action act = () => new VehicleEvent(
             ParkingEventType.Entry,
-            "ABC1234",
+            " ",
             "{ \"event_type\": \"ENTRY\" }",
-            new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Local));
+            CreateUtcDate());
 
         var exception = Assert.Throws<DomainException>(act);
-        Assert.Equal("Processed timestamp must be informed in UTC.", exception.Message);
+        Assert.Equal("License plate is required.", exception.Message);
     }
 
     [Fact]
@@ -42,6 +55,32 @@ public class VehicleEventTests
 
         var exception = Assert.Throws<DomainException>(act);
         Assert.Equal("Payload snapshot is required.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenProcessedAtIsDefault()
+    {
+        Action act = () => new VehicleEvent(
+            ParkingEventType.Entry,
+            "ABC1234",
+            "{ \"event_type\": \"ENTRY\" }",
+            default);
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Processed timestamp is required.", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowDomainException_WhenProcessedAtIsNotUtc()
+    {
+        Action act = () => new VehicleEvent(
+            ParkingEventType.Entry,
+            "ABC1234",
+            "{ \"event_type\": \"ENTRY\" }",
+            new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Local));
+
+        var exception = Assert.Throws<DomainException>(act);
+        Assert.Equal("Processed timestamp must be informed in UTC.", exception.Message);
     }
 
     private static DateTime CreateUtcDate()
