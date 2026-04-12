@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -18,9 +18,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Estapar.Parking.Domain\Estapar.Parking.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Estapar.Parking.Domain\Estapar.Parking.Domain.csproj" />
+		<ProjectReference Include="..\..\src\Estapar.Parking.Application\Estapar.Parking.Application.csproj" />
+		<ProjectReference Include="..\..\src\Estapar.Parking.Infrastructure\Estapar.Parking.Infrastructure.csproj" />
+	</ItemGroup>
 
 </Project>

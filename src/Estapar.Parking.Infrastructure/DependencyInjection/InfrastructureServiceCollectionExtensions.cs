@@ -1,5 +1,7 @@
-﻿using Estapar.Parking.Application.Abstractions.Persistence;
+﻿using Estapar.Parking.Application.Abstractions.Integrations;
+using Estapar.Parking.Application.Abstractions.Persistence;
 using Estapar.Parking.Domain.Policies;
+using Estapar.Parking.Infrastructure.Integrations;
 using Estapar.Parking.Infrastructure.Persistence;
 using Estapar.Parking.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -19,8 +21,19 @@ public static class InfrastructureServiceCollectionExtensions
             throw new InvalidOperationException("Connection string 'ParkingDatabase' was not found.");
         }
 
+        var garageApiBaseUrl = configuration[$"{GarageApiOptions.SectionName}:BaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(garageApiBaseUrl))
+        {
+            throw new InvalidOperationException("Garage API base URL was not configured.");
+        }
+
         services.AddDbContext<ParkingDbContext>(options =>
             options.UseSqlServer(connectionString));
+
+        services.AddHttpClient<IGarageConfigurationClient, GarageConfigurationClient>(client => {
+            client.BaseAddress = new Uri(garageApiBaseUrl);
+        });
 
         services.AddScoped<ISectorRepository, SectorRepository>();
         services.AddScoped<IParkingSpotRepository, ParkingSpotRepository>();
