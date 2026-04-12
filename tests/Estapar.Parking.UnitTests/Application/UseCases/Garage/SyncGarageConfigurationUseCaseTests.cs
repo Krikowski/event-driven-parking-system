@@ -41,20 +41,36 @@ public class SyncGarageConfigurationUseCaseTests
         Assert.Equal(2, parkingSpotRepository.AddedParkingSpots.Count);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
 
-        Assert.Contains(sectorRepository.AddedSectors, sector => sector.Code == "A" && sector.BasePrice == 10m && sector.MaxCapacity == 100);
-        Assert.Contains(sectorRepository.AddedSectors, sector => sector.Code == "B" && sector.BasePrice == 20m && sector.MaxCapacity == 50);
+        Assert.Contains(
+            sectorRepository.AddedSectors,
+            sector => sector.Code == "A" && sector.BasePrice == 10m && sector.MaxCapacity == 100);
 
-        Assert.Contains(parkingSpotRepository.AddedParkingSpots, parkingSpot => parkingSpot.Id == 1 && parkingSpot.SectorCode == "A");
-        Assert.Contains(parkingSpotRepository.AddedParkingSpots, parkingSpot => parkingSpot.Id == 2 && parkingSpot.SectorCode == "B");
+        Assert.Contains(
+            sectorRepository.AddedSectors,
+            sector => sector.Code == "B" && sector.BasePrice == 20m && sector.MaxCapacity == 50);
+
+        Assert.Contains(
+            parkingSpotRepository.AddedParkingSpots,
+            parkingSpot => parkingSpot.Id == 1 && parkingSpot.SectorCode == "A");
+
+        Assert.Contains(
+            parkingSpotRepository.AddedParkingSpots,
+            parkingSpot => parkingSpot.Id == 2 && parkingSpot.SectorCode == "B");
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldDoNothing_WhenConfigurationAlreadyExists()
+    public async Task ExecuteAsync_ShouldNotSynchronize_WhenConfigurationAlreadyExists()
     {
         var garageConfigurationClient = new FakeGarageConfigurationClient(
             new GarageConfigurationDto(
-                new List<GarageSectorDto> { new("A", 10m, 100) },
-                new List<GarageSpotDto> { new(1, "A", -23.561684m, -46.655981m) }));
+                new List<GarageSectorDto>
+                {
+                    new("A", 10m, 100)
+                },
+                new List<GarageSpotDto>
+                {
+                    new(1, "A", -23.561684m, -46.655981m)
+                }));
 
         var sectorRepository = new FakeSectorRepository(hasAny: true);
         var parkingSpotRepository = new FakeParkingSpotRepository(hasAny: true);
@@ -79,8 +95,14 @@ public class SyncGarageConfigurationUseCaseTests
     {
         var garageConfigurationClient = new FakeGarageConfigurationClient(
             new GarageConfigurationDto(
-                new List<GarageSectorDto> { new("A", 10m, 100) },
-                new List<GarageSpotDto> { new(1, "A", -23.561684m, -46.655981m) }));
+                new List<GarageSectorDto>
+                {
+                    new("A", 10m, 100)
+                },
+                new List<GarageSpotDto>
+                {
+                    new(1, "A", -23.561684m, -46.655981m)
+                }));
 
         var sectorRepository = new FakeSectorRepository(hasAny: true);
         var parkingSpotRepository = new FakeParkingSpotRepository(hasAny: false);
