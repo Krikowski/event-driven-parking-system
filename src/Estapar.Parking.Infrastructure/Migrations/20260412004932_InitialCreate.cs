@@ -95,9 +95,11 @@ namespace Estapar.Parking.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ParkingSessions_LicensePlate",
+                name: "IX_ParkingSessions_ActiveLicensePlate",
                 table: "ParkingSessions",
-                column: "LicensePlate");
+                column: "LicensePlate",
+                unique: true,
+                filter: "[Status] = 1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ParkingSessions_LicensePlate_Status",

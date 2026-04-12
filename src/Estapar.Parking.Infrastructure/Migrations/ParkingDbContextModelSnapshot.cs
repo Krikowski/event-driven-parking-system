@@ -62,7 +62,10 @@ namespace Estapar.Parking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LicensePlate");
+                    b.HasIndex("LicensePlate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ParkingSessions_ActiveLicensePlate")
+                        .HasFilter("[Status] = 1");
 
                     b.HasIndex("ParkingSpotId");
 

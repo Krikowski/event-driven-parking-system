@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Estapar.Parking.Infrastructure.Migrations
 {
     [DbContext(typeof(ParkingDbContext))]
-    [Migration("20260412002531_InitialCreate")]
+    [Migration("20260412004932_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -65,7 +65,10 @@ namespace Estapar.Parking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LicensePlate");
+                    b.HasIndex("LicensePlate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ParkingSessions_ActiveLicensePlate")
+                        .HasFilter("[Status] = 1");
 
                     b.HasIndex("ParkingSpotId");
 
