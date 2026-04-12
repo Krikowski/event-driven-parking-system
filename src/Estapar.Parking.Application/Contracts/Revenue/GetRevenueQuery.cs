@@ -1,4 +1,4 @@
-﻿namespace Estapar.Parking.Application.UseCases.Revenue;
+﻿namespace Estapar.Parking.Application.Contracts.Revenue;
 
 public sealed record GetRevenueQuery(
     string SectorCode,

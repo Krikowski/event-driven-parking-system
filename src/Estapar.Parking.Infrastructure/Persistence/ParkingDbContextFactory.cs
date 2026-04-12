@@ -7,10 +7,12 @@ public sealed class ParkingDbContextFactory : IDesignTimeDbContextFactory<Parkin
 {
     public ParkingDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<ParkingDbContext>();
+        var connectionString =
+            Environment.GetEnvironmentVariable("ESTAPAR_PARKING_DATABASE") ??
+            "Server=(localdb)\\MSSQLLocalDB;Database=EstaparParkingDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
-        optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\MSSQLLocalDB;Database=EstaparParkingDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True");
+        var optionsBuilder = new DbContextOptionsBuilder<ParkingDbContext>();
+        optionsBuilder.UseSqlServer(connectionString);
 
         return new ParkingDbContext(optionsBuilder.Options);
     }

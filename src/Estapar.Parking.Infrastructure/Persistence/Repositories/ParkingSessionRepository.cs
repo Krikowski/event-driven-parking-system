@@ -36,8 +36,12 @@ public sealed class ParkingSessionRepository : IParkingSessionRepository
                 cancellationToken);
     }
 
-    public Task AddAsync(ParkingSession parkingSession, CancellationToken cancellationToken = default)
+    public Task AddAsync(
+        ParkingSession parkingSession,
+        CancellationToken cancellationToken = default)
     {
-        return _dbContext.ParkingSessions.AddAsync(parkingSession, cancellationToken).AsTask();
+        return _dbContext.ParkingSessions
+            .AddAsync(parkingSession, cancellationToken)
+            .AsTask();
     }
 }
