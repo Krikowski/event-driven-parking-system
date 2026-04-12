@@ -1,4 +1,5 @@
 using Estapar.Parking.Infrastructure.DependencyInjection;
+using Estapar.Parking.Application.UseCases.Garage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +8,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<ISyncGarageConfigurationUseCase, SyncGarageConfigurationUseCase>();
 
 var app = builder.Build();
 
