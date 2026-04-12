@@ -1,4 +1,7 @@
-﻿using Estapar.Parking.Infrastructure.Persistence;
+﻿using Estapar.Parking.Application.Abstractions.Persistence;
+using Estapar.Parking.Domain.Policies;
+using Estapar.Parking.Infrastructure.Persistence;
+using Estapar.Parking.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +21,15 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddDbContext<ParkingDbContext>(options =>
             options.UseSqlServer(connectionString));
+
+        services.AddScoped<ISectorRepository, SectorRepository>();
+        services.AddScoped<IParkingSpotRepository, ParkingSpotRepository>();
+        services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
+        services.AddScoped<IVehicleEventRepository, VehicleEventRepository>();
+        services.AddScoped<IRevenueReadRepository, RevenueReadRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddScoped<IPricingPolicy, PricingPolicy>();
 
         return services;
     }
