@@ -2,8 +2,9 @@
 
 public sealed class RevenueResponseModel
 {
-    public string Sector { get; init; } = default!;
     public decimal Amount { get; init; }
-    public string Currency { get; init; } = "BRL";
-    public DateTime GeneratedAt { get; init; }
+
+    public string Currency { get; init; } = default!;
+
+    public DateTime Timestamp { get; init; }
 }
