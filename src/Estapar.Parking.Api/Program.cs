@@ -1,10 +1,11 @@
-using Estapar.Parking.Infrastructure.DependencyInjection;
-using Estapar.Parking.Application.UseCases.Garage;
 using Estapar.Parking.Api.HostedServices;
+using Estapar.Parking.Api.Middlewares;
 using Estapar.Parking.Application.UseCases.Entry;
-using Estapar.Parking.Application.UseCases.Parked;
 using Estapar.Parking.Application.UseCases.Exit;
+using Estapar.Parking.Application.UseCases.Garage;
+using Estapar.Parking.Application.UseCases.Parked;
 using Estapar.Parking.Application.UseCases.Revenue;
+using Estapar.Parking.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.MapControllers();
 
