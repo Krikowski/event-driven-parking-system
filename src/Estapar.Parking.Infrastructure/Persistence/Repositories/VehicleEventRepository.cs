@@ -1,6 +1,8 @@
 ﻿using Estapar.Parking.Application.Abstractions.Persistence;
 using Estapar.Parking.Domain.Entities;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Estapar.Parking.Infrastructure.Persistence.Repositories;
 
 public sealed class VehicleEventRepository : IVehicleEventRepository
@@ -12,8 +14,20 @@ public sealed class VehicleEventRepository : IVehicleEventRepository
         _dbContext = dbContext;
     }
 
-    public Task AddAsync(VehicleEvent vehicleEvent, CancellationToken cancellationToken = default)
+    public Task<bool> ExistsByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
     {
-        return _dbContext.VehicleEvents.AddAsync(vehicleEvent, cancellationToken).AsTask();
+        return _dbContext.VehicleEvents
+            .AnyAsync(vehicleEvent => vehicleEvent.IdempotencyKey == idempotencyKey, cancellationToken);
+    }
+
+    public Task AddAsync(
+        VehicleEvent vehicleEvent,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.VehicleEvents
+            .AddAsync(vehicleEvent, cancellationToken)
+            .AsTask();
     }
 }

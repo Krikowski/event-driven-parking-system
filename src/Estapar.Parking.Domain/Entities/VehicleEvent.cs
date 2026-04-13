@@ -5,17 +5,24 @@ namespace Estapar.Parking.Domain.Entities;
 
 public class VehicleEvent
 {
+    public string IdempotencyKey { get; }
     public ParkingEventType EventType { get; }
     public string LicensePlate { get; }
     public string PayloadSnapshot { get; }
     public DateTime ProcessedAtUtc { get; }
 
     public VehicleEvent(
+        string idempotencyKey,
         ParkingEventType eventType,
         string licensePlate,
         string payloadSnapshot,
         DateTime processedAtUtc)
     {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new DomainException("Idempotency key is required.");
+        }
+
         if (!Enum.IsDefined(typeof(ParkingEventType), eventType))
         {
             throw new DomainException("Parking event type is invalid.");
@@ -41,6 +48,7 @@ public class VehicleEvent
             throw new DomainException("Processed timestamp must be informed in UTC.");
         }
 
+        IdempotencyKey = idempotencyKey.Trim();
         EventType = eventType;
         LicensePlate = licensePlate.Trim().ToUpperInvariant();
         PayloadSnapshot = payloadSnapshot.Trim();

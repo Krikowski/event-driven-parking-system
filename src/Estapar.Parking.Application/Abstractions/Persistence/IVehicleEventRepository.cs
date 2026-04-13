@@ -4,5 +4,11 @@ namespace Estapar.Parking.Application.Abstractions.Persistence;
 
 public interface IVehicleEventRepository
 {
-    Task AddAsync(VehicleEvent vehicleEvent, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default);
+
+    Task AddAsync(
+        VehicleEvent vehicleEvent,
+        CancellationToken cancellationToken = default);
 }
