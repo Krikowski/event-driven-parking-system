@@ -340,10 +340,9 @@ public class HandleEntryEventUseCaseTests
 
     private sealed class FakeVehicleEventRepository : IVehicleEventRepository
     {
-        private readonly List<VehicleEvent> _events = new();
         private readonly HashSet<string> _idempotencyKeys = new();
 
-        public IReadOnlyCollection<VehicleEvent> AddedEvents => _events;
+        public List<VehicleEvent> AddedEvents { get; } = new();
 
         public Task<bool> ExistsByIdempotencyKeyAsync(
             string idempotencyKey,
@@ -352,11 +351,9 @@ public class HandleEntryEventUseCaseTests
             return Task.FromResult(_idempotencyKeys.Contains(idempotencyKey));
         }
 
-        public Task AddAsync(
-            VehicleEvent vehicleEvent,
-            CancellationToken cancellationToken = default)
+        public Task AddAsync(VehicleEvent vehicleEvent, CancellationToken cancellationToken = default)
         {
-            _events.Add(vehicleEvent);
+            AddedEvents.Add(vehicleEvent);
             _idempotencyKeys.Add(vehicleEvent.IdempotencyKey);
 
             return Task.CompletedTask;
