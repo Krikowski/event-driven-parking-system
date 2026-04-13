@@ -2,6 +2,7 @@
 using Estapar.Parking.Application.Abstractions.Persistence;
 using Estapar.Parking.Application.Contracts.Integrations;
 using Estapar.Parking.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Garage;
 
@@ -11,17 +12,20 @@ public sealed class SyncGarageConfigurationUseCase : ISyncGarageConfigurationUse
     private readonly ISectorRepository _sectorRepository;
     private readonly IParkingSpotRepository _parkingSpotRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<SyncGarageConfigurationUseCase> _logger;
 
     public SyncGarageConfigurationUseCase(
         IGarageConfigurationClient garageConfigurationClient,
         ISectorRepository sectorRepository,
         IParkingSpotRepository parkingSpotRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<SyncGarageConfigurationUseCase> logger)
     {
         _garageConfigurationClient = garageConfigurationClient;
         _sectorRepository = sectorRepository;
         _parkingSpotRepository = parkingSpotRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
@@ -31,6 +35,7 @@ public sealed class SyncGarageConfigurationUseCase : ISyncGarageConfigurationUse
 
         if (hasSectors && hasSpots)
         {
+            _logger.LogInformation("Garage configuration sync skipped because data already exists.");
             return;
         }
 
@@ -39,6 +44,8 @@ public sealed class SyncGarageConfigurationUseCase : ISyncGarageConfigurationUse
             throw new InvalidOperationException(
                 "Garage configuration is partially persisted. Manual intervention is required.");
         }
+
+        _logger.LogInformation("Synchronizing garage configuration from external source.");
 
         var configuration = await _garageConfigurationClient.GetConfigurationAsync(cancellationToken);
 
@@ -64,6 +71,11 @@ public sealed class SyncGarageConfigurationUseCase : ISyncGarageConfigurationUse
         await _sectorRepository.AddRangeAsync(sectors, cancellationToken);
         await _parkingSpotRepository.AddRangeAsync(parkingSpots, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Garage configuration synchronized successfully with {SectorCount} sectors and {SpotCount} spots.",
+            sectors.Count,
+            parkingSpots.Count);
     }
 
     private static void ValidateConfiguration(GarageConfigurationDto configuration)

@@ -3,6 +3,7 @@ using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Policies;
+using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Exit;
 
@@ -12,6 +13,7 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
     private readonly IParkingSpotRepository _parkingSpotRepository;
     private readonly ISectorRepository _sectorRepository;
     private readonly IPricingPolicy _pricingPolicy;
+    private readonly ILogger<HandleExitEventUseCase> _logger;
 
     public HandleExitEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
@@ -19,13 +21,15 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
         ISectorRepository sectorRepository,
         IVehicleEventRepository vehicleEventRepository,
         IPricingPolicy pricingPolicy,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<HandleExitEventUseCase> logger)
         : base(vehicleEventRepository, unitOfWork)
     {
         _parkingSessionRepository = parkingSessionRepository;
         _parkingSpotRepository = parkingSpotRepository;
         _sectorRepository = sectorRepository;
         _pricingPolicy = pricingPolicy;
+        _logger = logger;
     }
 
     public async Task ExecuteAsync(
@@ -35,6 +39,11 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
         ArgumentNullException.ThrowIfNull(command);
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
+
+        _logger.LogInformation(
+            "Processing webhook event {EventType} for license plate {LicensePlate}.",
+            "EXIT",
+            normalizedLicensePlate);
 
         var parkingSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
             normalizedLicensePlate,
@@ -79,11 +88,18 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
                 license_plate = command.LicensePlate,
                 exit_time = command.ExitTimeUtc,
                 sector = parkingSession.SectorCode,
-                spot_id = parkingSession.ParkingSpotId, // ← ADICIONAR
+                spot_id = parkingSession.ParkingSpotId,
                 charged_amount = parkingSession.ChargedAmount
             });
 
         await AddVehicleEventAsync(vehicleEvent, cancellationToken);
         await SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector} with spot {SpotId}.",
+            "EXIT",
+            normalizedLicensePlate,
+            parkingSession.SectorCode,
+            parkingSession.ParkingSpotId);
     }
 }
