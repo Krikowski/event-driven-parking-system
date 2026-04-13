@@ -3,6 +3,7 @@ using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Policies;
+
 using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Exit;
@@ -39,11 +40,24 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
         ArgumentNullException.ThrowIfNull(command);
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
+        var idempotencyKey = VehicleEventIdempotencyKeyFactory.CreateForExit(
+            normalizedLicensePlate,
+            command.ExitTimeUtc);
 
         _logger.LogInformation(
             "Processing webhook event {EventType} for license plate {LicensePlate}.",
             "EXIT",
             normalizedLicensePlate);
+
+        if (await HasAlreadyBeenProcessedAsync(idempotencyKey, cancellationToken))
+        {
+            _logger.LogInformation(
+                "Ignoring duplicate webhook event {EventType} for license plate {LicensePlate}.",
+                "EXIT",
+                normalizedLicensePlate);
+
+            return;
+        }
 
         var parkingSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
             normalizedLicensePlate,
@@ -58,7 +72,9 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
 
         parkingSession.Close(command.ExitTimeUtc, chargedAmount);
 
-        var sector = await _sectorRepository.GetByCodeAsync(parkingSession.SectorCode, cancellationToken);
+        var sector = await _sectorRepository.GetByCodeAsync(
+            parkingSession.SectorCode,
+            cancellationToken);
 
         if (sector is null)
         {
@@ -81,9 +97,11 @@ public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEven
         }
 
         var vehicleEvent = VehicleEventFactory.Create(
+            idempotencyKey,
             ParkingEventType.Exit,
             normalizedLicensePlate,
-            new {
+            new
+            {
                 event_type = "EXIT",
                 license_plate = command.LicensePlate,
                 exit_time = command.ExitTimeUtc,

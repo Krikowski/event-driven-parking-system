@@ -32,15 +32,24 @@ public abstract class WebhookUseCaseBase
         return parkingSession;
     }
 
-    protected async Task AddVehicleEventAsync(
+    protected Task<bool> HasAlreadyBeenProcessedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        return _vehicleEventRepository.ExistsByIdempotencyKeyAsync(
+            idempotencyKey,
+            cancellationToken);
+    }
+
+    protected Task AddVehicleEventAsync(
         VehicleEvent vehicleEvent,
         CancellationToken cancellationToken)
     {
-        await _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
+        return _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
     }
 
-    protected async Task SaveChangesAsync(CancellationToken cancellationToken)
+    protected Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

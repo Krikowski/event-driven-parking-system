@@ -3,6 +3,7 @@ using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
+
 using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Parked;
@@ -45,6 +46,22 @@ public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParked
 
         parkingSession = EnsureActiveSessionExists(parkingSession);
 
+        var idempotencyKey = VehicleEventIdempotencyKeyFactory.CreateForParked(
+            normalizedLicensePlate,
+            parkingSession.EntryTimeUtc,
+            command.Latitude,
+            command.Longitude);
+
+        if (await HasAlreadyBeenProcessedAsync(idempotencyKey, cancellationToken))
+        {
+            _logger.LogInformation(
+                "Ignoring duplicate webhook event {EventType} for license plate {LicensePlate}.",
+                "PARKED",
+                normalizedLicensePlate);
+
+            return;
+        }
+
         var parkingSpot = await _parkingSpotRepository.GetByCoordinatesAsync(
             command.Latitude,
             command.Longitude,
@@ -69,9 +86,11 @@ public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParked
         parkingSession.AssignParkingSpot(parkingSpot.Id, parkingSpot.SectorCode);
 
         var vehicleEvent = VehicleEventFactory.Create(
+            idempotencyKey,
             ParkingEventType.Parked,
             normalizedLicensePlate,
-            new {
+            new
+            {
                 event_type = "PARKED",
                 license_plate = command.LicensePlate,
                 lat = command.Latitude,

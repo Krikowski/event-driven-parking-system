@@ -5,6 +5,7 @@ using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Policies;
+
 using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Entry;
@@ -38,11 +39,24 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         ArgumentNullException.ThrowIfNull(command);
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
+        var idempotencyKey = VehicleEventIdempotencyKeyFactory.CreateForEntry(
+            normalizedLicensePlate,
+            command.EntryTimeUtc);
 
         _logger.LogInformation(
             "Processing webhook event {EventType} for license plate {LicensePlate}.",
             "ENTRY",
             normalizedLicensePlate);
+
+        if (await HasAlreadyBeenProcessedAsync(idempotencyKey, cancellationToken))
+        {
+            _logger.LogInformation(
+                "Ignoring duplicate webhook event {EventType} for license plate {LicensePlate}.",
+                "ENTRY",
+                normalizedLicensePlate);
+
+            return;
+        }
 
         var hasActiveSession = await _parkingSessionRepository.ExistsActiveByLicensePlateAsync(
             normalizedLicensePlate,
@@ -74,9 +88,11 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
             frozenHourlyRate);
 
         var vehicleEvent = VehicleEventFactory.Create(
+            idempotencyKey,
             ParkingEventType.Entry,
             normalizedLicensePlate,
-            new {
+            new
+            {
                 event_type = "ENTRY",
                 license_plate = command.LicensePlate,
                 entry_time = command.EntryTimeUtc,

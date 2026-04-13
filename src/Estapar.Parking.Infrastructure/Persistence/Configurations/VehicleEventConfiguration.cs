@@ -1,5 +1,6 @@
 ﻿using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Infrastructure.Persistence.Converters;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,6 +17,10 @@ public sealed class VehicleEventConfiguration : IEntityTypeConfiguration<Vehicle
 
         builder.HasKey("Id");
 
+        builder.Property(vehicleEvent => vehicleEvent.IdempotencyKey)
+            .HasMaxLength(64)
+            .IsRequired();
+
         builder.Property(vehicleEvent => vehicleEvent.EventType)
             .HasConversion<int>()
             .IsRequired();
@@ -25,7 +30,7 @@ public sealed class VehicleEventConfiguration : IEntityTypeConfiguration<Vehicle
             .IsRequired();
 
         builder.Property(vehicleEvent => vehicleEvent.PayloadSnapshot)
-            .HasMaxLength(4000)
+            .HasColumnType("nvarchar(max)")
             .IsRequired();
 
         builder.Property(vehicleEvent => vehicleEvent.ProcessedAtUtc)
@@ -33,7 +38,15 @@ public sealed class VehicleEventConfiguration : IEntityTypeConfiguration<Vehicle
             .HasColumnType("datetime2")
             .IsRequired();
 
+        builder.HasIndex(vehicleEvent => vehicleEvent.IdempotencyKey)
+            .IsUnique();
+
         builder.HasIndex(vehicleEvent => vehicleEvent.LicensePlate);
-        builder.HasIndex(vehicleEvent => new { vehicleEvent.EventType, vehicleEvent.ProcessedAtUtc });
+
+        builder.HasIndex(vehicleEvent => new
+        {
+            vehicleEvent.EventType,
+            vehicleEvent.ProcessedAtUtc
+        });
     }
 }
