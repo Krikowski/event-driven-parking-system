@@ -41,8 +41,8 @@ public class HandleEntryEventUseCaseTests
     {
         var sectors = new[]
         {
-            CreateSectorWithAllocatedCapacity("A", maxCapacity: 2, allocatedCapacity: 2),
-            CreateSectorWithAllocatedCapacity("B", maxCapacity: 1, allocatedCapacity: 1)
+            CreateSector("A", maxCapacity: 2, allocatedCapacity: 2, basePrice: 10m),
+            CreateSector("B", maxCapacity: 1, allocatedCapacity: 1, basePrice: 10m)
         };
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
@@ -69,13 +69,13 @@ public class HandleEntryEventUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldSelectFirstEligibleSectorOrderedByCode()
+    public async Task ExecuteAsync_ShouldSelectSectorWithLowestOccupancyPercentage()
     {
         var sectors = new[]
         {
-        CreateSectorWithAllocatedCapacity("B", maxCapacity: 10, allocatedCapacity: 0),
-        CreateSectorWithAllocatedCapacity("A", maxCapacity: 10, allocatedCapacity: 0)
-    };
+            CreateSector("A", maxCapacity: 10, allocatedCapacity: 5, basePrice: 10m),
+            CreateSector("B", maxCapacity: 10, allocatedCapacity: 2, basePrice: 10m)
+        };
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(sectors);
@@ -97,10 +97,82 @@ public class HandleEntryEventUseCaseTests
         var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
 
         Assert.Equal("ZUL0001", createdSession.LicensePlate);
+        Assert.Equal("B", createdSession.SectorCode);
+        Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
+        Assert.Equal(5, sectors.Single(s => s.Code == "A").AllocatedCapacity);
+        Assert.Equal(3, sectors.Single(s => s.Code == "B").AllocatedCapacity);
+        Assert.Single(vehicleEventRepository.AddedEvents);
+        Assert.Equal(1, unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldSelectSectorWithLowestBasePrice_WhenOccupancyIsTied()
+    {
+        var sectors = new[]
+        {
+            CreateSector("A", maxCapacity: 10, allocatedCapacity: 2, basePrice: 12m),
+            CreateSector("B", maxCapacity: 10, allocatedCapacity: 2, basePrice: 10m)
+        };
+
+        var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
+        var sectorRepository = new FakeSectorRepository(sectors);
+        var vehicleEventRepository = new FakeVehicleEventRepository();
+        var pricingPolicy = new PricingPolicy();
+        var unitOfWork = new FakeUnitOfWork();
+
+        var useCase = new HandleEntryEventUseCase(
+            parkingSessionRepository,
+            sectorRepository,
+            vehicleEventRepository,
+            pricingPolicy,
+            unitOfWork);
+
+        var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
+
+        await useCase.ExecuteAsync(command);
+
+        var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
+
+        Assert.Equal("B", createdSession.SectorCode);
+        Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
+        Assert.Equal(2, sectors.Single(s => s.Code == "A").AllocatedCapacity);
+        Assert.Equal(3, sectors.Single(s => s.Code == "B").AllocatedCapacity);
+        Assert.Single(vehicleEventRepository.AddedEvents);
+        Assert.Equal(1, unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldSelectSectorByCode_WhenOccupancyAndBasePriceAreTied()
+    {
+        var sectors = new[]
+        {
+            CreateSector("B", maxCapacity: 10, allocatedCapacity: 2, basePrice: 10m),
+            CreateSector("A", maxCapacity: 10, allocatedCapacity: 2, basePrice: 10m)
+        };
+
+        var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
+        var sectorRepository = new FakeSectorRepository(sectors);
+        var vehicleEventRepository = new FakeVehicleEventRepository();
+        var pricingPolicy = new PricingPolicy();
+        var unitOfWork = new FakeUnitOfWork();
+
+        var useCase = new HandleEntryEventUseCase(
+            parkingSessionRepository,
+            sectorRepository,
+            vehicleEventRepository,
+            pricingPolicy,
+            unitOfWork);
+
+        var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
+
+        await useCase.ExecuteAsync(command);
+
+        var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
+
         Assert.Equal("A", createdSession.SectorCode);
         Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
-        Assert.Equal(1, sectors.Single(s => s.Code == "A").AllocatedCapacity);
-        Assert.Equal(0, sectors.Single(s => s.Code == "B").AllocatedCapacity);
+        Assert.Equal(3, sectors.Single(s => s.Code == "A").AllocatedCapacity);
+        Assert.Equal(2, sectors.Single(s => s.Code == "B").AllocatedCapacity);
         Assert.Single(vehicleEventRepository.AddedEvents);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
     }
@@ -111,11 +183,11 @@ public class HandleEntryEventUseCaseTests
     [InlineData(50, 100, 10.0)]
     [InlineData(75, 100, 11.0)]
     public async Task ExecuteAsync_ShouldFreezeCorrectHourlyRate_AtOccupancyBoundaries(
-    int allocatedCapacityBeforeEntry,
-    int maxCapacity,
-    decimal expectedFrozenHourlyRate)
+        int allocatedCapacityBeforeEntry,
+        int maxCapacity,
+        decimal expectedFrozenHourlyRate)
     {
-        var sector = CreateSectorWithAllocatedCapacity("A", maxCapacity, allocatedCapacityBeforeEntry);
+        var sector = CreateSector("A", maxCapacity, allocatedCapacityBeforeEntry, 10m);
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(new[] { sector });
@@ -144,7 +216,7 @@ public class HandleEntryEventUseCaseTests
     [Fact]
     public async Task ExecuteAsync_ShouldNormalizeLicensePlate_AndPersistEntryEvent()
     {
-        var sector = CreateSectorWithAllocatedCapacity("A", maxCapacity: 10, allocatedCapacity: 0);
+        var sector = CreateSector("A", maxCapacity: 10, allocatedCapacity: 0, basePrice: 10m);
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(new[] { sector });
@@ -177,9 +249,9 @@ public class HandleEntryEventUseCaseTests
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
     }
 
-    private static Sector CreateSectorWithAllocatedCapacity(string code, int maxCapacity, int allocatedCapacity)
+    private static Sector CreateSector(string code, int maxCapacity, int allocatedCapacity, decimal basePrice)
     {
-        var sector = new Sector(code, maxCapacity, 10m);
+        var sector = new Sector(code, maxCapacity, basePrice);
 
         for (var i = 0; i < allocatedCapacity; i++)
         {

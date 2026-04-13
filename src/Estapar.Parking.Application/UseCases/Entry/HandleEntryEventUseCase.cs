@@ -48,11 +48,7 @@ public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
         }
 
         var sectors = await _sectorRepository.GetAllAsync(cancellationToken);
-
-        var selectedSector = sectors
-            .Where(sector => sector.HasAvailableCapacity)
-            .OrderBy(sector => sector.Code, StringComparer.Ordinal)
-            .FirstOrDefault();
+        var selectedSector = SelectSectorForEntry(sectors);
 
         if (selectedSector is null)
         {
@@ -80,6 +76,16 @@ public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
         await _parkingSessionRepository.AddAsync(parkingSession, cancellationToken);
         await _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private static Sector? SelectSectorForEntry(IEnumerable<Sector> sectors)
+    {
+        return sectors
+            .Where(sector => sector.HasAvailableCapacity)
+            .OrderBy(sector => sector.CalculateOccupancyPercentage())
+            .ThenBy(sector => sector.BasePrice)
+            .ThenBy(sector => sector.Code, StringComparer.Ordinal)
+            .FirstOrDefault();
     }
 
     private static string NormalizeLicensePlate(string licensePlate)
