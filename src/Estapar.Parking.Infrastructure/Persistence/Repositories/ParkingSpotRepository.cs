@@ -18,6 +18,16 @@ public sealed class ParkingSpotRepository : IParkingSpotRepository
         return _dbContext.ParkingSpots.AnyAsync(cancellationToken);
     }
 
+    public Task<ParkingSpot?> GetByIdAsync(
+        int parkingSpotId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ParkingSpots
+            .FirstOrDefaultAsync(
+                parkingSpot => parkingSpot.Id == parkingSpotId,
+                cancellationToken);
+    }
+
     public Task<ParkingSpot?> GetByCoordinatesAsync(
         decimal latitude,
         decimal longitude,

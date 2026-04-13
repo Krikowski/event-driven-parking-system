@@ -225,6 +225,13 @@ public class SyncGarageConfigurationUseCaseTests
             return Task.FromResult(_hasAny);
         }
 
+        public Task<ParkingSpot?> GetByIdAsync(
+            int parkingSpotId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ParkingSpot?>(null);
+        }
+
         public Task<ParkingSpot?> GetByCoordinatesAsync(
             decimal latitude,
             decimal longitude,
