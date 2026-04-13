@@ -49,8 +49,6 @@ public sealed class ParkingSessionConfiguration : IEntityTypeConfiguration<Parki
             .HasPrecision(18, 2)
             .IsRequired(false);
 
-        builder.HasIndex(session => session.LicensePlate);
-
         builder.HasIndex(session => session.LicensePlate)
             .HasDatabaseName("IX_ParkingSessions_ActiveLicensePlate")
             .IsUnique()
@@ -61,9 +59,9 @@ public sealed class ParkingSessionConfiguration : IEntityTypeConfiguration<Parki
             .IsUnique()
             .HasFilter("[Status] = 1 AND [ParkingSpotId] IS NOT NULL");
 
-        builder.HasIndex(session => new { session.LicensePlate, session.Status });
-
-        builder.HasIndex(session => new { session.SectorCode, session.EntryTimeUtc });
+        builder.HasIndex(session => new { session.SectorCode, session.ExitTimeUtc })
+            .HasDatabaseName("IX_ParkingSessions_RevenueBySectorAndExitTime")
+            .HasFilter("[ExitTimeUtc] IS NOT NULL");
 
         builder.HasOne<Sector>()
             .WithMany()
