@@ -5,6 +5,7 @@ using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Policies;
+using Microsoft.Extensions.Logging;
 
 namespace Estapar.Parking.Application.UseCases.Entry;
 
@@ -13,18 +14,21 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
     private readonly IParkingSessionRepository _parkingSessionRepository;
     private readonly ISectorRepository _sectorRepository;
     private readonly IPricingPolicy _pricingPolicy;
+    private readonly ILogger<HandleEntryEventUseCase> _logger;
 
     public HandleEntryEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
         ISectorRepository sectorRepository,
         IVehicleEventRepository vehicleEventRepository,
         IPricingPolicy pricingPolicy,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<HandleEntryEventUseCase> logger)
         : base(vehicleEventRepository, unitOfWork)
     {
         _parkingSessionRepository = parkingSessionRepository;
         _sectorRepository = sectorRepository;
         _pricingPolicy = pricingPolicy;
+        _logger = logger;
     }
 
     public async Task ExecuteAsync(
@@ -34,6 +38,11 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         ArgumentNullException.ThrowIfNull(command);
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
+
+        _logger.LogInformation(
+            "Processing webhook event {EventType} for license plate {LicensePlate}.",
+            "ENTRY",
+            normalizedLicensePlate);
 
         var hasActiveSession = await _parkingSessionRepository.ExistsActiveByLicensePlateAsync(
             normalizedLicensePlate,
@@ -78,6 +87,12 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         await _parkingSessionRepository.AddAsync(parkingSession, cancellationToken);
         await AddVehicleEventAsync(vehicleEvent, cancellationToken);
         await SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector}.",
+            "ENTRY",
+            normalizedLicensePlate,
+            selectedSector.Code);
     }
 
     private static Sector? SelectSectorForEntry(IEnumerable<Sector> sectors)
