@@ -1,5 +1,5 @@
-﻿using System.Text.Json;
-using Estapar.Parking.Application.Abstractions.Persistence;
+﻿using Estapar.Parking.Application.Abstractions.Persistence;
+using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
@@ -8,13 +8,11 @@ using Estapar.Parking.Domain.Policies;
 
 namespace Estapar.Parking.Application.UseCases.Entry;
 
-public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
+public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEventUseCase
 {
     private readonly IParkingSessionRepository _parkingSessionRepository;
     private readonly ISectorRepository _sectorRepository;
-    private readonly IVehicleEventRepository _vehicleEventRepository;
     private readonly IPricingPolicy _pricingPolicy;
-    private readonly IUnitOfWork _unitOfWork;
 
     public HandleEntryEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
@@ -22,12 +20,11 @@ public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
         IVehicleEventRepository vehicleEventRepository,
         IPricingPolicy pricingPolicy,
         IUnitOfWork unitOfWork)
+        : base(vehicleEventRepository, unitOfWork)
     {
         _parkingSessionRepository = parkingSessionRepository;
         _sectorRepository = sectorRepository;
-        _vehicleEventRepository = vehicleEventRepository;
         _pricingPolicy = pricingPolicy;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task ExecuteAsync(
@@ -67,15 +64,20 @@ public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
             command.EntryTimeUtc,
             frozenHourlyRate);
 
-        var vehicleEvent = new VehicleEvent(
+        var vehicleEvent = VehicleEventFactory.Create(
             ParkingEventType.Entry,
             normalizedLicensePlate,
-            CreatePayloadSnapshot(command, selectedSector.Code, frozenHourlyRate),
-            DateTime.UtcNow);
+            new {
+                event_type = "ENTRY",
+                license_plate = command.LicensePlate,
+                entry_time = command.EntryTimeUtc,
+                sector = selectedSector.Code,
+                frozen_hourly_rate = frozenHourlyRate
+            });
 
         await _parkingSessionRepository.AddAsync(parkingSession, cancellationToken);
-        await _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await AddVehicleEventAsync(vehicleEvent, cancellationToken);
+        await SaveChangesAsync(cancellationToken);
     }
 
     private static Sector? SelectSectorForEntry(IEnumerable<Sector> sectors)
@@ -86,29 +88,5 @@ public sealed class HandleEntryEventUseCase : IHandleEntryEventUseCase
             .ThenBy(sector => sector.BasePrice)
             .ThenBy(sector => sector.Code, StringComparer.Ordinal)
             .FirstOrDefault();
-    }
-
-    private static string NormalizeLicensePlate(string licensePlate)
-    {
-        if (string.IsNullOrWhiteSpace(licensePlate))
-        {
-            throw new DomainException("License plate is required.");
-        }
-
-        return licensePlate.Trim().ToUpperInvariant();
-    }
-
-    private static string CreatePayloadSnapshot(
-        HandleEntryEventCommand command,
-        string sectorCode,
-        decimal frozenHourlyRate)
-    {
-        return JsonSerializer.Serialize(new {
-            event_type = "ENTRY",
-            license_plate = command.LicensePlate,
-            entry_time = command.EntryTimeUtc,
-            sector = sectorCode,
-            frozen_hourly_rate = frozenHourlyRate
-        });
     }
 }

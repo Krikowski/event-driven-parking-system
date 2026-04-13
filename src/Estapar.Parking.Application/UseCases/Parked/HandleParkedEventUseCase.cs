@@ -1,29 +1,25 @@
-﻿using System.Text.Json;
-using Estapar.Parking.Application.Abstractions.Persistence;
+﻿using Estapar.Parking.Application.Abstractions.Persistence;
+using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
-using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 
 namespace Estapar.Parking.Application.UseCases.Parked;
 
-public sealed class HandleParkedEventUseCase : IHandleParkedEventUseCase
+public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParkedEventUseCase
 {
     private readonly IParkingSessionRepository _parkingSessionRepository;
     private readonly IParkingSpotRepository _parkingSpotRepository;
-    private readonly IVehicleEventRepository _vehicleEventRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
     public HandleParkedEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
         IParkingSpotRepository parkingSpotRepository,
         IVehicleEventRepository vehicleEventRepository,
         IUnitOfWork unitOfWork)
+        : base(vehicleEventRepository, unitOfWork)
     {
         _parkingSessionRepository = parkingSessionRepository;
         _parkingSpotRepository = parkingSpotRepository;
-        _vehicleEventRepository = vehicleEventRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task ExecuteAsync(
@@ -34,19 +30,11 @@ public sealed class HandleParkedEventUseCase : IHandleParkedEventUseCase
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
 
-        var activeSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
+        var parkingSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
             normalizedLicensePlate,
             cancellationToken);
 
-        if (activeSession is null)
-        {
-            throw new DomainException("No active parking session was found for this license plate.");
-        }
-
-        if (activeSession.ParkingSpotId is not null)
-        {
-            throw new DomainException("Parking session is already associated with a parking spot.");
-        }
+        parkingSession = EnsureActiveSessionExists(parkingSession);
 
         var parkingSpot = await _parkingSpotRepository.GetByCoordinatesAsync(
             command.Latitude,
@@ -63,41 +51,27 @@ public sealed class HandleParkedEventUseCase : IHandleParkedEventUseCase
             throw new DomainException("Parking spot is already occupied.");
         }
 
-        activeSession.AssignParkingSpot(parkingSpot.Id, parkingSpot.SectorCode);
-        parkingSpot.Occupy();
-
-        var vehicleEvent = new VehicleEvent(
-            ParkingEventType.Parked,
-            normalizedLicensePlate,
-            CreatePayloadSnapshot(command, parkingSpot.Id, activeSession.SectorCode),
-            DateTime.UtcNow);
-
-        await _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-    }
-
-    private static string NormalizeLicensePlate(string licensePlate)
-    {
-        if (string.IsNullOrWhiteSpace(licensePlate))
+        if (parkingSpot.SectorCode != parkingSession.SectorCode)
         {
-            throw new DomainException("License plate is required.");
+            throw new DomainException("Parking spot sector does not match session sector.");
         }
 
-        return licensePlate.Trim().ToUpperInvariant();
-    }
+        parkingSpot.Occupy();
+        parkingSession.AssignParkingSpot(parkingSpot.Id, parkingSpot.SectorCode);
 
-    private static string CreatePayloadSnapshot(
-        HandleParkedEventCommand command,
-        int parkingSpotId,
-        string sectorCode)
-    {
-        return JsonSerializer.Serialize(new {
+        var vehicleEvent = VehicleEventFactory.Create(
+        ParkingEventType.Parked,
+        normalizedLicensePlate,
+        new {
             event_type = "PARKED",
             license_plate = command.LicensePlate,
             lat = command.Latitude,
             lng = command.Longitude,
-            spot_id = parkingSpotId,
-            sector = sectorCode
+            sector = parkingSession.SectorCode,
+            spot_id = parkingSpot.Id
         });
+
+        await AddVehicleEventAsync(vehicleEvent, cancellationToken);
+        await SaveChangesAsync(cancellationToken);
     }
 }
