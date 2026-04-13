@@ -243,6 +243,15 @@ public class HandleParkedEventUseCaseTests
             return Task.FromResult(_parkingSpot is not null);
         }
 
+        public Task<ParkingSpot?> GetByIdAsync(
+            int parkingSpotId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_parkingSpot is not null && _parkingSpot.Id == parkingSpotId
+                ? _parkingSpot
+                : null);
+        }
+
         public Task<ParkingSpot?> GetByCoordinatesAsync(
             decimal latitude,
             decimal longitude,

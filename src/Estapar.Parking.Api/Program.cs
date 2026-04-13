@@ -3,6 +3,7 @@ using Estapar.Parking.Application.UseCases.Garage;
 using Estapar.Parking.Api.HostedServices;
 using Estapar.Parking.Application.UseCases.Entry;
 using Estapar.Parking.Application.UseCases.Parked;
+using Estapar.Parking.Application.UseCases.Exit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddHostedService<GarageBootstrapHostedService>();
 
 builder.Services.AddScoped<IHandleEntryEventUseCase, HandleEntryEventUseCase>();
 builder.Services.AddScoped<IHandleParkedEventUseCase, HandleParkedEventUseCase>();
+builder.Services.AddScoped<IHandleExitEventUseCase, HandleExitEventUseCase>();
 
 var app = builder.Build();
 
