@@ -1,36 +1,31 @@
-﻿using System.Text.Json;
-using Estapar.Parking.Application.Abstractions.Persistence;
+﻿using Estapar.Parking.Application.Abstractions.Persistence;
+using Estapar.Parking.Application.Common.Webhooks;
 using Estapar.Parking.Application.Contracts.Webhooks;
-using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
-using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Policies;
 
 namespace Estapar.Parking.Application.UseCases.Exit;
 
-public sealed class HandleExitEventUseCase : IHandleExitEventUseCase
+public sealed class HandleExitEventUseCase : WebhookUseCaseBase, IHandleExitEventUseCase
 {
     private readonly IParkingSessionRepository _parkingSessionRepository;
-    private readonly ISectorRepository _sectorRepository;
     private readonly IParkingSpotRepository _parkingSpotRepository;
-    private readonly IVehicleEventRepository _vehicleEventRepository;
+    private readonly ISectorRepository _sectorRepository;
     private readonly IPricingPolicy _pricingPolicy;
-    private readonly IUnitOfWork _unitOfWork;
 
     public HandleExitEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
-        ISectorRepository sectorRepository,
         IParkingSpotRepository parkingSpotRepository,
+        ISectorRepository sectorRepository,
         IVehicleEventRepository vehicleEventRepository,
         IPricingPolicy pricingPolicy,
         IUnitOfWork unitOfWork)
+        : base(vehicleEventRepository, unitOfWork)
     {
         _parkingSessionRepository = parkingSessionRepository;
-        _sectorRepository = sectorRepository;
         _parkingSpotRepository = parkingSpotRepository;
-        _vehicleEventRepository = vehicleEventRepository;
+        _sectorRepository = sectorRepository;
         _pricingPolicy = pricingPolicy;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task ExecuteAsync(
@@ -41,79 +36,54 @@ public sealed class HandleExitEventUseCase : IHandleExitEventUseCase
 
         var normalizedLicensePlate = NormalizeLicensePlate(command.LicensePlate);
 
-        var activeSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
+        var parkingSession = await _parkingSessionRepository.GetActiveByLicensePlateAsync(
             normalizedLicensePlate,
             cancellationToken);
 
-        if (activeSession is null)
-        {
-            throw new DomainException("No active parking session was found for this license plate.");
-        }
+        parkingSession = EnsureActiveSessionExists(parkingSession);
 
-        var sector = await _sectorRepository.GetByCodeAsync(activeSession.SectorCode, cancellationToken);
+        var chargedAmount = _pricingPolicy.CalculateChargedAmount(
+            parkingSession.EntryTimeUtc,
+            command.ExitTimeUtc,
+            parkingSession.FrozenHourlyRate);
+
+        parkingSession.Close(command.ExitTimeUtc, chargedAmount);
+
+        var sector = await _sectorRepository.GetByCodeAsync(parkingSession.SectorCode, cancellationToken);
 
         if (sector is null)
         {
-            throw new DomainException("Allocated sector was not found for the active parking session.");
+            throw new InvalidOperationException(
+                $"Sector '{parkingSession.SectorCode}' was not found for the active parking session.");
         }
 
-        var chargedAmount = _pricingPolicy.CalculateChargedAmount(
-            activeSession.EntryTimeUtc,
-            command.ExitTimeUtc,
-            activeSession.FrozenHourlyRate);
-
-        activeSession.Close(command.ExitTimeUtc, chargedAmount);
         sector.ReleaseCapacity();
 
-        ParkingSpot? assignedParkingSpot = null;
-
-        if (activeSession.ParkingSpotId.HasValue)
+        if (parkingSession.ParkingSpotId.HasValue)
         {
-            assignedParkingSpot = await _parkingSpotRepository.GetByIdAsync(
-                activeSession.ParkingSpotId.Value,
+            var parkingSpot = await _parkingSpotRepository.GetByIdAsync(
+                parkingSession.ParkingSpotId.Value,
                 cancellationToken);
 
-            if (assignedParkingSpot is null)
+            if (parkingSpot is not null)
             {
-                throw new DomainException("Assigned parking spot was not found for the active parking session.");
+                parkingSpot.Release();
             }
-
-            assignedParkingSpot.Release();
         }
 
-        var vehicleEvent = new VehicleEvent(
+        var vehicleEvent = VehicleEventFactory.Create(
             ParkingEventType.Exit,
             normalizedLicensePlate,
-            CreatePayloadSnapshot(command, activeSession.SectorCode, chargedAmount, assignedParkingSpot?.Id),
-            DateTime.UtcNow);
+            new {
+                event_type = "EXIT",
+                license_plate = command.LicensePlate,
+                exit_time = command.ExitTimeUtc,
+                sector = parkingSession.SectorCode,
+                spot_id = parkingSession.ParkingSpotId, // ← ADICIONAR
+                charged_amount = parkingSession.ChargedAmount
+            });
 
-        await _vehicleEventRepository.AddAsync(vehicleEvent, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-    }
-
-    private static string NormalizeLicensePlate(string licensePlate)
-    {
-        if (string.IsNullOrWhiteSpace(licensePlate))
-        {
-            throw new DomainException("License plate is required.");
-        }
-
-        return licensePlate.Trim().ToUpperInvariant();
-    }
-
-    private static string CreatePayloadSnapshot(
-        HandleExitEventCommand command,
-        string sectorCode,
-        decimal chargedAmount,
-        int? parkingSpotId)
-    {
-        return JsonSerializer.Serialize(new {
-            event_type = "EXIT",
-            license_plate = command.LicensePlate,
-            exit_time = command.ExitTimeUtc,
-            sector = sectorCode,
-            charged_amount = chargedAmount,
-            spot_id = parkingSpotId
-        });
+        await AddVehicleEventAsync(vehicleEvent, cancellationToken);
+        await SaveChangesAsync(cancellationToken);
     }
 }

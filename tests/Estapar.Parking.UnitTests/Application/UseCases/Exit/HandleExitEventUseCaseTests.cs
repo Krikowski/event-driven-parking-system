@@ -22,8 +22,8 @@ public class HandleExitEventUseCaseTests
 
         var useCase = new HandleExitEventUseCase(
             parkingSessionRepository,
-            sectorRepository,
             parkingSpotRepository,
+            sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork);
@@ -59,8 +59,8 @@ public class HandleExitEventUseCaseTests
 
         var useCase = new HandleExitEventUseCase(
             parkingSessionRepository,
-            sectorRepository,
             parkingSpotRepository,
+            sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork);
@@ -101,8 +101,8 @@ public class HandleExitEventUseCaseTests
 
         var useCase = new HandleExitEventUseCase(
             parkingSessionRepository,
-            sectorRepository,
             parkingSpotRepository,
+            sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork);
@@ -145,8 +145,8 @@ public class HandleExitEventUseCaseTests
 
         var useCase = new HandleExitEventUseCase(
             parkingSessionRepository,
-            sectorRepository,
             parkingSpotRepository,
+            sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork);
@@ -187,8 +187,8 @@ public class HandleExitEventUseCaseTests
 
         var useCase = new HandleExitEventUseCase(
             parkingSessionRepository,
-            sectorRepository,
             parkingSpotRepository,
+            sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork);
