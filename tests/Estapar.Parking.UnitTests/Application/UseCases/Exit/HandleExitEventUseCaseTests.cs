@@ -6,6 +6,8 @@ using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Policies;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Estapar.Parking.UnitTests.Application.UseCases.Exit;
 
 public class HandleExitEventUseCaseTests
@@ -26,7 +28,8 @@ public class HandleExitEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleExitEventUseCase>.Instance);
 
         var command = new HandleExitEventCommand(
             "zul0001",
@@ -63,7 +66,8 @@ public class HandleExitEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleExitEventUseCase>.Instance);
 
         var command = new HandleExitEventCommand(
             "zul0001",
@@ -105,7 +109,8 @@ public class HandleExitEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleExitEventUseCase>.Instance);
 
         var command = new HandleExitEventCommand(
             "zul0001",
@@ -149,7 +154,8 @@ public class HandleExitEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleExitEventUseCase>.Instance );
 
         var command = new HandleExitEventCommand(
             "zul0001",
@@ -191,7 +197,8 @@ public class HandleExitEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleExitEventUseCase>.Instance );
 
         var command = new HandleExitEventCommand(
             " zul0001 ",

@@ -4,6 +4,8 @@ using Estapar.Parking.Application.Contracts.Integrations;
 using Estapar.Parking.Application.UseCases.Garage;
 using Estapar.Parking.Domain.Entities;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Estapar.Parking.UnitTests.Application.UseCases.Garage;
 
 public class SyncGarageConfigurationUseCaseTests
@@ -32,7 +34,8 @@ public class SyncGarageConfigurationUseCaseTests
             garageConfigurationClient,
             sectorRepository,
             parkingSpotRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<SyncGarageConfigurationUseCase>.Instance);
 
         await useCase.ExecuteAsync();
 
@@ -80,7 +83,8 @@ public class SyncGarageConfigurationUseCaseTests
             garageConfigurationClient,
             sectorRepository,
             parkingSpotRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<SyncGarageConfigurationUseCase>.Instance);
 
         await useCase.ExecuteAsync();
 
@@ -112,7 +116,8 @@ public class SyncGarageConfigurationUseCaseTests
             garageConfigurationClient,
             sectorRepository,
             parkingSpotRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<SyncGarageConfigurationUseCase>.Instance);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync());
 
@@ -146,7 +151,8 @@ public class SyncGarageConfigurationUseCaseTests
             garageConfigurationClient,
             sectorRepository,
             parkingSpotRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<SyncGarageConfigurationUseCase>.Instance);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync());
 

@@ -5,6 +5,8 @@ using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Estapar.Parking.UnitTests.Application.UseCases.Parked;
 
 public class HandleParkedEventUseCaseTests
@@ -21,7 +23,8 @@ public class HandleParkedEventUseCaseTests
             parkingSessionRepository,
             parkingSpotRepository,
             vehicleEventRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleParkedEventUseCase>.Instance);
 
         var command = new HandleParkedEventCommand(
             "zul0001",
@@ -49,7 +52,8 @@ public class HandleParkedEventUseCaseTests
             parkingSessionRepository,
             parkingSpotRepository,
             vehicleEventRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleParkedEventUseCase>.Instance);
 
         var command = new HandleParkedEventCommand(
             "zul0001",
@@ -79,7 +83,8 @@ public class HandleParkedEventUseCaseTests
             parkingSessionRepository,
             parkingSpotRepository,
             vehicleEventRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleParkedEventUseCase>.Instance);
 
         var command = new HandleParkedEventCommand(
             "zul0001",
@@ -113,7 +118,8 @@ public class HandleParkedEventUseCaseTests
             parkingSessionRepository,
             parkingSpotRepository,
             vehicleEventRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleParkedEventUseCase>.Instance);
 
         var command = new HandleParkedEventCommand(
             "zul0001",
@@ -148,7 +154,8 @@ public class HandleParkedEventUseCaseTests
             parkingSessionRepository,
             parkingSpotRepository,
             vehicleEventRepository,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleParkedEventUseCase>.Instance);
 
         var command = new HandleParkedEventCommand(
             " zul0001 ",

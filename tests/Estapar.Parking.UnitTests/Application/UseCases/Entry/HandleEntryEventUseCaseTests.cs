@@ -6,6 +6,8 @@ using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.Domain.Exceptions;
 using Estapar.Parking.Domain.Policies;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Estapar.Parking.UnitTests.Application.UseCases.Entry;
 
 public class HandleEntryEventUseCaseTests
@@ -24,7 +26,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc));
 
@@ -56,7 +59,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
@@ -88,7 +92,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
@@ -125,7 +130,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
@@ -161,7 +167,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
@@ -200,7 +207,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand("zul0001", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
@@ -229,7 +237,8 @@ public class HandleEntryEventUseCaseTests
             sectorRepository,
             vehicleEventRepository,
             pricingPolicy,
-            unitOfWork);
+            unitOfWork,
+            NullLogger<HandleEntryEventUseCase>.Instance);
 
         var command = new HandleEntryEventCommand(" zul0001 ", CreateUtcDate(2025, 1, 1, 12, 0, 0));
 
