@@ -3,6 +3,7 @@ using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Application.UseCases.Entry;
 using Estapar.Parking.Application.UseCases.Exit;
 using Estapar.Parking.Application.UseCases.Parked;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace Estapar.Parking.Api.Controllers;
@@ -32,70 +33,41 @@ public sealed class WebhookController : ControllerBase
         [FromBody] WebhookEventRequest request,
         CancellationToken cancellationToken)
     {
-        if (request is null)
+        var validationError = WebhookEventRequestValidator.Validate(request);
+
+        if (validationError is not null)
         {
-            return BadRequest("Request body is required.");
+            return BadRequest(validationError);
         }
 
-        if (string.IsNullOrWhiteSpace(request.EventType))
-        {
-            return BadRequest("Event type is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.LicensePlate))
-        {
-            return BadRequest("License plate is required.");
-        }
-
-        var eventType = request.EventType.Trim().ToUpperInvariant();
+        var eventType = WebhookEventRequestValidator.NormalizeEventType(request.EventType);
 
         switch (eventType)
         {
             case "ENTRY":
-                if (!request.EntryTime.HasValue)
-                {
-                    return BadRequest("Entry time is required for ENTRY events.");
-                }
-
                 await _handleEntryEventUseCase.ExecuteAsync(
                     new HandleEntryEventCommand(
                         request.LicensePlate,
-                        request.EntryTime.Value),
+                        request.EntryTime!.Value),
                     cancellationToken);
-
                 break;
 
             case "PARKED":
-                if (!request.Lat.HasValue || !request.Lng.HasValue)
-                {
-                    return BadRequest("Latitude and longitude are required for PARKED events.");
-                }
-
                 await _handleParkedEventUseCase.ExecuteAsync(
                     new HandleParkedEventCommand(
                         request.LicensePlate,
-                        request.Lat.Value,
-                        request.Lng.Value),
+                        request.Lat!.Value,
+                        request.Lng!.Value),
                     cancellationToken);
-
                 break;
 
             case "EXIT":
-                if (!request.ExitTime.HasValue)
-                {
-                    return BadRequest("Exit time is required for EXIT events.");
-                }
-
                 await _handleExitEventUseCase.ExecuteAsync(
                     new HandleExitEventCommand(
                         request.LicensePlate,
-                        request.ExitTime.Value),
+                        request.ExitTime!.Value),
                     cancellationToken);
-
                 break;
-
-            default:
-                return BadRequest("Unsupported event type.");
         }
 
         return Ok();
