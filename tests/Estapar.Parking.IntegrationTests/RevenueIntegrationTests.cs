@@ -9,6 +9,25 @@ namespace Estapar.Parking.IntegrationTests;
 
 public sealed class RevenueIntegrationTests
 {
+
+    [Fact]
+    public async Task Get_Revenue_ShouldReturnStructuredValidationError_WhenQueryIsInvalid()
+    {
+        await using var factory = new CustomWebApplicationFactory();
+        await factory.ResetDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/revenue");
+        var payload = await response.Content.ReadFromJsonAsync<ErrorResponseModel>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.Equal("invalid_request", payload!.Code);
+        Assert.Contains("Sector is required.", payload.Details!);
+        Assert.Contains("Date is required.", payload.Details!);
+    }
+
     [Fact]
     public async Task Get_Revenue_ShouldReturnCorrectAmount_AfterCompleteWebhookFlow()
     {

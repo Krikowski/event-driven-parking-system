@@ -108,7 +108,7 @@ Multiplicador baseado na ocupação do setor no momento da entrada:
 
 O processamento de eventos do webhook é idempotente.
 
-Cada evento possui `IdempotencyKey` persistida com índice único. Duplicidades de webhook são absorvidas sem repetir efeitos colaterais, e conflitos operacionais esperados de persistência são traduzidos para respostas HTTP semânticas.
+Cada evento possui `IdempotencyKey` persistida com índice único. Duplicidades de webhook são absorvidas sem repetir efeitos colaterais, e conflitos operacionais esperados de persistência são traduzidos para respostas HTTP semânticas e rastreáveis por `TraceId`.
 
 Isso evita efeitos duplicados como:
 
@@ -117,6 +117,41 @@ Isso evita efeitos duplicados como:
 - recálculo de cobrança (`EXIT`)
 
 ---
+
+
+## Contratos HTTP e observabilidade
+
+A API expõe respostas HTTP consistentes para facilitar rastreabilidade e troubleshooting:
+
+- respostas de erro usam payload estruturado com `code`, `message`, `details`, `traceId` e `timestamp`
+- respostas de sucesso do webhook retornam `status`, `message`, `traceId` e `timestamp`
+- duplicidade já persistida continua respondendo `200 OK`, mas explicitamente com `status = ignored`
+- logs carregam escopo mínimo de operação (`TraceId`, rota e método)
+
+Exemplo de erro de validação:
+
+```json
+{
+  "code": "invalid_request",
+  "message": "Webhook request validation failed.",
+  "details": [
+    "Entry time is required for ENTRY events."
+  ],
+  "traceId": "0HN...",
+  "timestamp": "2025-01-01T12:00:00Z"
+}
+```
+
+Exemplo de duplicidade absorvida:
+
+```json
+{
+  "status": "ignored",
+  "message": "Duplicate webhook event received. Previous successful processing was preserved.",
+  "traceId": "0HN...",
+  "timestamp": "2025-01-01T12:00:00Z"
+}
+```
 
 ## Integração com a API da garagem
 
@@ -213,3 +248,25 @@ Integração
 ```bash
 dotnet test tests/Estapar.Parking.IntegrationTests
 ```
+
+
+## Cenários de falha considerados
+
+A entrega prioriza consistência do domínio e previsibilidade operacional para os cenários mais críticos do teste:
+
+- webhook duplicado → absorvido por `IdempotencyKey` persistida
+- concorrência de entrada / vaga → protegida por regras de domínio e restrições únicas no banco
+- `EXIT` sem `PARKED` anterior → suportado, desde que exista sessão ativa
+- `PARKED` com coordenada divergente → rejeitado com `422 Unprocessable Entity`
+- bootstrap parcial da garagem → startup abortado para evitar operação degradada
+
+## Limitações conhecidas e próximos passos
+
+Para manter o escopo focado no core do teste, alguns pontos ficaram explicitamente fora desta versão:
+
+- sem fila, retry assíncrono ou dead-letter queue para reprocessamento externo
+- sem estratégia de ordenação global de eventos além das invariantes da sessão ativa
+- matching de coordenadas no `PARKED` é exato, sem tolerância geoespacial
+- testes de integração usam SQLite em memória para velocidade, não SQL Server real
+
+Esses pontos foram deixados claros para separar o que já está garantido no código do que seria a próxima evolução natural para um ambiente produtivo de maior escala.

@@ -2,41 +2,65 @@
 
 public static class WebhookEventRequestValidator
 {
-    public static string? Validate(WebhookEventRequest? request)
+    public static IReadOnlyCollection<string> Validate(WebhookEventRequest? request)
     {
+        var errors = new List<string>();
+
         if (request is null)
         {
-            return "Request body is required.";
+            errors.Add("Request body is required.");
+            return errors;
         }
 
         if (string.IsNullOrWhiteSpace(request.EventType))
         {
-            return "Event type is required.";
+            errors.Add("Event type is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.LicensePlate))
         {
-            return "License plate is required.";
+            errors.Add("License plate is required.");
+        }
+
+        if (errors.Count > 0)
+        {
+            return errors;
         }
 
         var eventType = NormalizeEventType(request.EventType);
 
-        return eventType switch
+        switch (eventType)
         {
-            "ENTRY" when !request.EntryTime.HasValue
-                => "Entry time is required for ENTRY events.",
+            case "ENTRY":
+                if (!request.EntryTime.HasValue)
+                {
+                    errors.Add("Entry time is required for ENTRY events.");
+                }
 
-            "PARKED" when !request.Lat.HasValue || !request.Lng.HasValue
-                => "Latitude and longitude are required for PARKED events.",
+                break;
 
-            "EXIT" when !request.ExitTime.HasValue
-                => "Exit time is required for EXIT events.",
+            case "PARKED":
+                if (!request.Lat.HasValue || !request.Lng.HasValue)
+                {
+                    errors.Add("Latitude and longitude are required for PARKED events.");
+                }
 
-            "ENTRY" or "PARKED" or "EXIT"
-                => null,
+                break;
 
-            _ => "Unsupported event type."
-        };
+            case "EXIT":
+                if (!request.ExitTime.HasValue)
+                {
+                    errors.Add("Exit time is required for EXIT events.");
+                }
+
+                break;
+
+            default:
+                errors.Add("Unsupported event type.");
+                break;
+        }
+
+        return errors;
     }
 
     public static string NormalizeEventType(string eventType)

@@ -1,6 +1,40 @@
 @Estapar.Parking.Api_HostAddress = http://localhost:5005
 
-GET {{Estapar.Parking.Api_HostAddress}}/weatherforecast/
+### Health
+GET {{Estapar.Parking.Api_HostAddress}}/health
 Accept: application/json
 
-###
+### Valid ENTRY webhook
+POST {{Estapar.Parking.Api_HostAddress}}/webhook
+Content-Type: application/json
+
+{
+  "license_plate": "ZUL0001",
+  "entry_time": "2025-01-01T12:00:00.000Z",
+  "event_type": "ENTRY"
+}
+
+### Valid PARKED webhook
+POST {{Estapar.Parking.Api_HostAddress}}/webhook
+Content-Type: application/json
+
+{
+  "license_plate": "ZUL0001",
+  "lat": -23.561684,
+  "lng": -46.655981,
+  "event_type": "PARKED"
+}
+
+### Valid EXIT webhook
+POST {{Estapar.Parking.Api_HostAddress}}/webhook
+Content-Type: application/json
+
+{
+  "license_plate": "ZUL0001",
+  "exit_time": "2025-01-01T13:31:00.000Z",
+  "event_type": "EXIT"
+}
+
+### Revenue by sector and date
+GET {{Estapar.Parking.Api_HostAddress}}/revenue?sector=A&date=2025-01-01
+Accept: application/json

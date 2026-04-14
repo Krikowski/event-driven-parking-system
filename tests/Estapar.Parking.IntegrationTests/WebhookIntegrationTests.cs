@@ -1,7 +1,9 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Json;
 
+using Estapar.Parking.Api.Models.Responses;
 using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Domain.Enums;
 using Estapar.Parking.IntegrationTests.Infrastructure;
@@ -12,6 +14,30 @@ namespace Estapar.Parking.IntegrationTests;
 
 public sealed class WebhookIntegrationTests
 {
+
+    [Fact]
+    public async Task Post_Webhook_ShouldReturnStructuredValidationError_WhenPayloadIsInvalid()
+    {
+        await using var factory = new CustomWebApplicationFactory();
+        await factory.ResetDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsync("/webhook", CreateJsonContent(new
+        {
+            event_type = "ENTRY",
+            license_plate = "ZUL0001"
+        }));
+
+        var payload = await response.Content.ReadFromJsonAsync<ErrorResponseModel>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.Equal("invalid_request", payload!.Code);
+        Assert.Contains("Entry time is required for ENTRY events.", payload.Details!);
+        Assert.False(string.IsNullOrWhiteSpace(payload.TraceId));
+    }
+
     [Fact]
     public async Task Post_Webhook_ShouldIgnoreDuplicateEntry()
     {
