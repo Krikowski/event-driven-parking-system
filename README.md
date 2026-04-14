@@ -8,7 +8,8 @@ Implementação do teste técnico backend para gerenciamento de estacionamento o
 
 A solução processa eventos de veículos recebidos via webhook, controla capacidade por setor, reserva vaga física já no `ENTRY`, confirma a vaga no `PARKED`, calcula cobrança com tarifa dinâmica congelada na entrada e expõe consulta de faturamento por setor e data.
 
-O sistema foi projetado para lidar com inconsistências comuns em fluxos orientados a eventos, como duplicidade, ordem não garantida e concorrência de persistência.
+O sistema foi projetado para lidar com inconsistências comuns em fluxos orientados a eventos, com foco em duplicidade e concorrência de persistência.
+Cenários de ordenação não garantida são tratados parcialmente dentro das invariantes do modelo de sessão ativa.
 
 ---
 
@@ -115,6 +116,8 @@ Isso evita efeitos duplicados como:
 - criação de múltiplas sessões (`ENTRY`)
 - dupla confirmação de vaga (`PARKED`)
 - recálculo de cobrança (`EXIT`)
+
+A estratégia de idempotência garante segurança contra duplicidade de eventos, mas não resolve cenários de eventos fora de ordem que dependem de estado já finalizado (ex: PARKED após EXIT). Esses casos são tratados dentro das restrições do fluxo de sessão ativa, onde eventos dependem da existência de uma sessão válida no momento do processamento.
 
 ---
 
@@ -255,7 +258,7 @@ dotnet test tests/Estapar.Parking.IntegrationTests
 A entrega prioriza consistência do domínio e previsibilidade operacional para os cenários mais críticos do teste:
 
 - webhook duplicado → absorvido por `IdempotencyKey` persistida
-- concorrência de entrada / vaga → protegida por regras de domínio e restrições únicas no banco
+- concorrência de entrada / vaga → parcialmente protegida por regras de domínio e restrições únicas no banco
 - `EXIT` sem `PARKED` anterior → suportado, desde que exista sessão ativa
 - `PARKED` com coordenada divergente → rejeitado com `422 Unprocessable Entity`
 - bootstrap parcial da garagem → startup abortado para evitar operação degradada
@@ -265,8 +268,11 @@ A entrega prioriza consistência do domínio e previsibilidade operacional para 
 Para manter o escopo focado no core do teste, alguns pontos ficaram explicitamente fora desta versão:
 
 - sem fila, retry assíncrono ou dead-letter queue para reprocessamento externo
-- sem estratégia de ordenação global de eventos além das invariantes da sessão ativa
+- não há estratégia de ordenação global de eventos; o processamento depende das invariantes da sessão ativa e pode ser evoluído com buffering ou reconciliação assíncrona
 - matching de coordenadas no `PARKED` é exato, sem tolerância geoespacial
 - testes de integração usam SQLite em memória para velocidade, não SQL Server real
+- controle de capacidade lógica do setor não é totalmente protegido contra concorrência extrema, podendo ser evoluído com controle otimista (concurrency token) ou atualização atômica no banco
+
+A escolha por não implementar controle transacional mais forte foi deliberada para manter o foco na modelagem de domínio e clareza do fluxo principal dentro do escopo do teste.
 
 Esses pontos foram deixados claros para separar o que já está garantido no código do que seria a próxima evolução natural para um ambiente produtivo de maior escala.
