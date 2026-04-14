@@ -1,5 +1,6 @@
 using Estapar.Parking.Api.HostedServices;
 using Estapar.Parking.Api.Middlewares;
+using Estapar.Parking.Api.Models.Responses;
 using Estapar.Parking.Application.UseCases.Entry;
 using Estapar.Parking.Application.UseCases.Exit;
 using Estapar.Parking.Application.UseCases.Garage;
@@ -33,11 +34,16 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 }
 
 app.UseHttpsRedirection();
-
+app.UseMiddleware<RequestContextLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapGet("/health", () => Results.Ok(new HealthResponseModel
+{
+    Status = "healthy",
+    Service = "estapar-parking-api",
+    Timestamp = DateTime.UtcNow
+}));
 
 app.Run();
 

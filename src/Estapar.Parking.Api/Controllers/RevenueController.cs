@@ -20,17 +20,24 @@ public sealed class RevenueController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(RevenueResponseModel), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponseModel), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Get(
         [FromQuery(Name = "sector")] string? sectorCode,
         [FromQuery(Name = "date")] DateOnly? date,
         CancellationToken cancellationToken)
     {
-        var validationError = RevenueQueryRequestValidator.Validate(sectorCode, date);
+        var validationErrors = RevenueQueryRequestValidator.Validate(sectorCode, date);
 
-        if (validationError is not null)
+        if (validationErrors.Count > 0)
         {
-            return BadRequest(validationError);
+            return BadRequest(new ErrorResponseModel
+            {
+                Code = "invalid_request",
+                Message = "Revenue query validation failed.",
+                Details = validationErrors,
+                TraceId = HttpContext.TraceIdentifier,
+                Timestamp = DateTime.UtcNow
+            });
         }
 
         var query = new GetRevenueQuery(

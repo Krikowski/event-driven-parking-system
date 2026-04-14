@@ -2,18 +2,20 @@
 
 public static class RevenueQueryRequestValidator
 {
-    public static string? Validate(string? sectorCode, DateOnly? date)
+    public static IReadOnlyCollection<string> Validate(string? sectorCode, DateOnly? date)
     {
+        var errors = new List<string>();
+
         if (string.IsNullOrWhiteSpace(sectorCode))
         {
-            return "Sector is required.";
+            errors.Add("Sector is required.");
         }
 
         if (!date.HasValue)
         {
-            return "Date is required.";
+            errors.Add("Date is required.");
         }
 
-        return null;
+        return errors;
     }
 }

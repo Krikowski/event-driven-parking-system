@@ -1,4 +1,5 @@
 ﻿using Estapar.Parking.Api.Models.Requests;
+using Estapar.Parking.Api.Models.Responses;
 using Estapar.Parking.Application.Contracts.Webhooks;
 using Estapar.Parking.Application.UseCases.Entry;
 using Estapar.Parking.Application.UseCases.Exit;
@@ -15,32 +16,52 @@ public sealed class WebhookController : ControllerBase
     private readonly IHandleEntryEventUseCase _handleEntryEventUseCase;
     private readonly IHandleParkedEventUseCase _handleParkedEventUseCase;
     private readonly IHandleExitEventUseCase _handleExitEventUseCase;
+    private readonly ILogger<WebhookController> _logger;
 
     public WebhookController(
         IHandleEntryEventUseCase handleEntryEventUseCase,
         IHandleParkedEventUseCase handleParkedEventUseCase,
-        IHandleExitEventUseCase handleExitEventUseCase)
+        IHandleExitEventUseCase handleExitEventUseCase,
+        ILogger<WebhookController> logger)
     {
         _handleEntryEventUseCase = handleEntryEventUseCase;
         _handleParkedEventUseCase = handleParkedEventUseCase;
         _handleExitEventUseCase = handleExitEventUseCase;
+        _logger = logger;
     }
 
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(WebhookAcceptedResponseModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponseModel), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponseModel), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ErrorResponseModel), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ErrorResponseModel), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Post(
         [FromBody] WebhookEventRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = WebhookEventRequestValidator.Validate(request);
+        var validationErrors = WebhookEventRequestValidator.Validate(request);
 
-        if (validationError is not null)
+        if (validationErrors.Count > 0)
         {
-            return BadRequest(validationError);
+            return BadRequest(new ErrorResponseModel
+            {
+                Code = "invalid_request",
+                Message = "Webhook request validation failed.",
+                Details = validationErrors,
+                TraceId = HttpContext.TraceIdentifier,
+                Timestamp = DateTime.UtcNow
+            });
         }
 
         var eventType = WebhookEventRequestValidator.NormalizeEventType(request.EventType);
+        var normalizedLicensePlate = request.LicensePlate.Trim().ToUpperInvariant();
+
+        _logger.LogInformation(
+            "Webhook request accepted for processing. EventType: {EventType}, LicensePlate: {LicensePlate}, TraceId: {TraceId}",
+            eventType,
+            normalizedLicensePlate,
+            HttpContext.TraceIdentifier);
 
         switch (eventType)
         {
@@ -70,6 +91,12 @@ public sealed class WebhookController : ControllerBase
                 break;
         }
 
-        return Ok();
+        return Ok(new WebhookAcceptedResponseModel
+        {
+            Status = "processed",
+            Message = $"Webhook event '{eventType}' processed successfully.",
+            TraceId = HttpContext.TraceIdentifier,
+            Timestamp = DateTime.UtcNow
+        });
     }
 }
