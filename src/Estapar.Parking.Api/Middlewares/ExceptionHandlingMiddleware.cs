@@ -46,7 +46,7 @@ public sealed class ExceptionHandlingMiddleware
                 context,
                 StatusCodes.Status500InternalServerError,
                 "unexpected_error",
-                "An unexpected error occurred.");
+                ex.Message);
         }
     }
 
