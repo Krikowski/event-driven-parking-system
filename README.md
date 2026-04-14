@@ -144,3 +144,85 @@ A URL da API externa é configurável via:
 "GarageApi": {
   "BaseUrl": "http://localhost:xxxx"
 }
+```
+
+A aplicação foi implementada para consumir o contrato descrito no teste técnico, podendo ser apontada diretamente para o simulador fornecido pelo avaliador sem necessidade de alteração de código.
+
+## Como executar
+
+1. Restaurar dependências
+```bash
+dotnet restore
+```
+2. Aplicar migrations
+```bash
+dotnet ef database update --project src/Estapar.Parking.Infrastructure --startup-project src/Estapar.Parking.Api
+```
+3. Executar a API
+```bash
+dotnet run --project src/Estapar.Parking.Api
+```
+
+A API estará disponível via Swagger em:
+
+```bash
+/swagger
+```
+
+Endpoints
+POST /webhook
+
+Recebe eventos:
+
+- ENTRY
+- PARKED
+- EXIT
+
+ENTRY
+```json
+{
+  "license_plate": "ZUL0001",
+  "entry_time": "2025-01-01T12:00:00.000Z",
+  "event_type": "ENTRY"
+}
+```
+
+PARKED
+```json
+{
+  "license_plate": "ZUL0001",
+  "lat": -23.561684,
+  "lng": -46.655981,
+  "event_type": "PARKED"
+}
+```
+
+EXIT
+```json
+{
+  "license_plate": "ZUL0001",
+  "exit_time": "2025-01-01T13:00:00.000Z",
+  "event_type": "EXIT"
+}
+```
+
+GET /revenue?sector=A&date=2025-01-01
+```json
+{
+  "amount": 0.00,
+  "currency": "BRL",
+  "timestamp": "2025-01-01T12:00:00.000Z"
+}
+```
+
+## Testes
+
+Unitários
+```bash
+dotnet test tests/Estapar.Parking.UnitTests
+```
+
+Integração
+```bash
+dotnet test tests/Estapar.Parking.IntegrationTests
+```
