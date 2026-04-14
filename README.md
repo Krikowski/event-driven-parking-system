@@ -36,7 +36,7 @@ O sistema foi projetado para lidar com inconsistências comuns em fluxos orienta
 
 ## Decisões principais de domínio
 
-As decisões completas estão em `docs/architecture-decisions.md`.
+As decisões completas estão em [docs/architecture-decisions.md](https://github.com/Krikowski/event-driven-parking-system/blob/main/docs/architecture-decisions.md).
 
 O núcleo da modelagem é:
 
