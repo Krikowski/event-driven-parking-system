@@ -16,3 +16,9 @@ coverage/
 
 appsettings.Local.json
 appsettings.*.local.json
+/Estapar.GarageSimulator.Mock
+
+*.tmp
+*.bak
+*.backup
+*.user
