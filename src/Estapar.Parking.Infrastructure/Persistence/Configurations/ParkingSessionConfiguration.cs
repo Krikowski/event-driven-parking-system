@@ -1,5 +1,6 @@
 ﻿using Estapar.Parking.Domain.Entities;
 using Estapar.Parking.Infrastructure.Persistence.Converters;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,61 +17,57 @@ public sealed class ParkingSessionConfiguration : IEntityTypeConfiguration<Parki
 
         builder.HasKey("Id");
 
-        builder.Property(session => session.LicensePlate)
+        builder.Property(parkingSession => parkingSession.LicensePlate)
             .HasMaxLength(16)
             .IsRequired();
 
-        builder.Property(session => session.SectorCode)
+        builder.Property(parkingSession => parkingSession.SectorCode)
             .HasMaxLength(16)
             .IsRequired();
 
-        builder.Property(session => session.ParkingSpotId)
-            .IsRequired(false);
-
-        builder.Property(session => session.EntryTimeUtc)
+        builder.Property(parkingSession => parkingSession.EntryTimeUtc)
             .HasConversion<UtcDateTimeConverter>()
-            .HasColumnType("datetime2")
             .IsRequired();
 
-        builder.Property(session => session.ExitTimeUtc)
-            .HasConversion<UtcNullableDateTimeConverter>()
-            .HasColumnType("datetime2")
-            .IsRequired(false);
+        builder.Property(parkingSession => parkingSession.ExitTimeUtc);
 
-        builder.Property(session => session.Status)
+        builder.Property(parkingSession => parkingSession.Status)
             .HasConversion<int>()
             .IsRequired();
 
-        builder.Property(session => session.FrozenHourlyRate)
+        builder.Property(parkingSession => parkingSession.FrozenHourlyRate)
             .HasPrecision(18, 2)
             .IsRequired();
 
-        builder.Property(session => session.ChargedAmount)
-            .HasPrecision(18, 2)
-            .IsRequired(false);
-
-        builder.HasIndex(session => session.LicensePlate)
-            .HasDatabaseName("IX_ParkingSessions_ActiveLicensePlate")
-            .IsUnique()
-            .HasFilter("[Status] = 1");
-
-        builder.HasIndex(session => session.ParkingSpotId)
-            .HasDatabaseName("IX_ParkingSessions_ActiveParkingSpot")
-            .IsUnique()
-            .HasFilter("[Status] = 1 AND [ParkingSpotId] IS NOT NULL");
-
-        builder.HasIndex(session => new { session.SectorCode, session.ExitTimeUtc })
-            .HasDatabaseName("IX_ParkingSessions_RevenueBySectorAndExitTime")
-            .HasFilter("[ExitTimeUtc] IS NOT NULL");
+        builder.Property(parkingSession => parkingSession.ChargedAmount)
+            .HasPrecision(18, 2);
 
         builder.HasOne<Sector>()
             .WithMany()
-            .HasForeignKey(session => session.SectorCode)
+            .HasForeignKey(parkingSession => parkingSession.SectorCode)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<ParkingSpot>()
             .WithMany()
-            .HasForeignKey(session => session.ParkingSpotId)
+            .HasForeignKey(parkingSession => parkingSession.ParkingSpotId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(parkingSession => parkingSession.LicensePlate)
+            .HasDatabaseName("IX_ParkingSessions_ActiveLicensePlate")
+            .IsUnique()
+            .HasFilter("[Status] = 1");
+
+        builder.HasIndex(parkingSession => parkingSession.ParkingSpotId)
+            .HasDatabaseName("IX_ParkingSessions_ActiveParkingSpot")
+            .IsUnique()
+            .HasFilter("[Status] = 1 AND [ParkingSpotId] IS NOT NULL");
+
+        builder.HasIndex(parkingSession => new
+        {
+            parkingSession.SectorCode,
+            parkingSession.ExitTimeUtc
+        })
+        .HasDatabaseName("IX_ParkingSessions_RevenueBySectorAndExitTime")
+        .HasFilter("[ExitTimeUtc] IS NOT NULL");
     }
 }

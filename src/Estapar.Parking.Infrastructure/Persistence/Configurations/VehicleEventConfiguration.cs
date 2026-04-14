@@ -30,15 +30,14 @@ public sealed class VehicleEventConfiguration : IEntityTypeConfiguration<Vehicle
             .IsRequired();
 
         builder.Property(vehicleEvent => vehicleEvent.PayloadSnapshot)
-            .HasColumnType("nvarchar(max)")
             .IsRequired();
 
         builder.Property(vehicleEvent => vehicleEvent.ProcessedAtUtc)
             .HasConversion<UtcDateTimeConverter>()
-            .HasColumnType("datetime2")
             .IsRequired();
 
         builder.HasIndex(vehicleEvent => vehicleEvent.IdempotencyKey)
+            .HasDatabaseName("IX_VehicleEvents_IdempotencyKey")
             .IsUnique();
 
         builder.HasIndex(vehicleEvent => vehicleEvent.LicensePlate);

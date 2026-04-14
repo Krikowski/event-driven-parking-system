@@ -6,9 +6,9 @@ Implementação do teste técnico backend para gerenciamento de estacionamento o
 
 ## Visão geral
 
-A solução processa eventos de veículos recebidos via webhook, controla capacidade por setor, associa ocupação física de vagas, calcula cobrança com tarifa dinâmica congelada na entrada e expõe consulta de faturamento por setor e data.
+A solução processa eventos de veículos recebidos via webhook, controla capacidade por setor, reserva vaga física já no `ENTRY`, confirma a vaga no `PARKED`, calcula cobrança com tarifa dinâmica congelada na entrada e expõe consulta de faturamento por setor e data.
 
-O sistema foi projetado para lidar com inconsistências comuns em fluxos orientados a eventos, como duplicidade, ordem não garantida e separação entre estado lógico e físico.
+O sistema foi projetado para lidar com inconsistências comuns em fluxos orientados a eventos, como duplicidade, ordem não garantida e concorrência de persistência.
 
 ---
 
@@ -40,25 +40,12 @@ As decisões completas estão em [docs/architecture-decisions.md](https://github
 
 O núcleo da modelagem é:
 
-- `ENTRY` consome capacidade lógica do setor
-- `PARKED` vincula a sessão a uma vaga física
+- `ENTRY` consome capacidade lógica do setor e reserva uma vaga física
+- `PARKED` confirma a vaga reservada por coordenadas
 - o preço é congelado na entrada
 - uma placa não pode ter duas sessões ativas
 - uma vaga não pode estar vinculada a duas sessões ativas
 - a receita pertence ao setor alocado na entrada
-
-Essa modelagem separa explicitamente dois conceitos distintos do problema:
-
-- **capacidade lógica do setor** (controle econômico)
-- **ocupação física da vaga** (controle operacional)
-
-Essa decisão evita inconsistências como:
-
-- bloquear entrada por falta de vaga física antes do evento `PARKED`
-- recalcular preço com base em ocupação após a entrada
-- acoplar cobrança à ocupação física
-
-Com isso, o sistema mantém consistência mesmo com eventos fora de ordem ou duplicados.
 
 ---
 
@@ -71,14 +58,14 @@ Ao receber `ENTRY`, o sistema:
 1. normaliza a placa
 2. impede sessão ativa duplicada
 3. seleciona um setor elegível
-4. calcula a ocupação do setor
-5. define o multiplicador de preço
-6. congela a tarifa efetiva
-7. consome capacidade lógica
-8. abre a sessão
-9. registra o evento
-
----
+4. localiza uma vaga física disponível nesse setor
+5. calcula a ocupação do setor
+6. define o multiplicador de preço
+7. congela a tarifa efetiva
+8. consome capacidade lógica
+9. reserva a vaga física
+10. abre a sessão
+11. registra o evento
 
 ### PARKED
 
@@ -86,13 +73,8 @@ Ao receber `PARKED`, o sistema:
 
 1. exige sessão ativa
 2. localiza a vaga pelas coordenadas
-3. valida o setor da vaga
-4. impede ocupação duplicada
-5. vincula a sessão à vaga
-6. marca a vaga como ocupada
-7. registra o evento
-
----
+3. valida que a vaga encontrada é a vaga reservada no `ENTRY`
+4. registra o evento
 
 ### EXIT
 
@@ -103,7 +85,7 @@ Ao receber `EXIT`, o sistema:
 3. aplica a regra de gratuidade até 30 minutos
 4. encerra a sessão
 5. libera a capacidade lógica do setor
-6. libera a vaga física, se houver
+6. libera a vaga física reservada
 7. registra o evento
 
 ---
@@ -122,14 +104,16 @@ Multiplicador baseado na ocupação do setor no momento da entrada:
 
 ---
 
-## Idempotência
+## Idempotência e concorrência
 
 O processamento de eventos do webhook é idempotente.
 
-Cada evento é identificado e persistido antes da execução. Caso o mesmo evento seja recebido novamente, ele é ignorado, evitando efeitos duplicados como:
+Cada evento possui `IdempotencyKey` persistida com índice único. Duplicidades de webhook são absorvidas sem repetir efeitos colaterais, e conflitos operacionais esperados de persistência são traduzidos para respostas HTTP semânticas.
+
+Isso evita efeitos duplicados como:
 
 - criação de múltiplas sessões (`ENTRY`)
-- reatribuição de vaga (`PARKED`)
+- dupla confirmação de vaga (`PARKED`)
 - recálculo de cobrança (`EXIT`)
 
 ---
@@ -147,6 +131,8 @@ A URL da API externa é configurável via:
 ```
 
 A aplicação foi implementada para consumir o contrato descrito no teste técnico, podendo ser apontada diretamente para o simulador fornecido pelo avaliador sem necessidade de alteração de código.
+
+O bootstrap da configuração da garagem é fail-fast: se a sincronização inicial falhar, a aplicação não sobe em estado parcialmente funcional.
 
 ## Como executar
 
@@ -169,8 +155,9 @@ A API estará disponível via Swagger em:
 /swagger
 ```
 
-Endpoints
-POST /webhook
+## Endpoints
+
+### POST /webhook
 
 Recebe eventos:
 
@@ -178,7 +165,7 @@ Recebe eventos:
 - PARKED
 - EXIT
 
-ENTRY
+#### ENTRY
 ```json
 {
   "license_plate": "ZUL0001",
@@ -187,7 +174,7 @@ ENTRY
 }
 ```
 
-PARKED
+#### PARKED
 ```json
 {
   "license_plate": "ZUL0001",
@@ -197,7 +184,7 @@ PARKED
 }
 ```
 
-EXIT
+#### EXIT
 ```json
 {
   "license_plate": "ZUL0001",
@@ -206,7 +193,7 @@ EXIT
 }
 ```
 
-GET /revenue?sector=A&date=2025-01-01
+### GET /revenue?sector=A&date=2025-01-01
 ```json
 {
   "amount": 0.00,

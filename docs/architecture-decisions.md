@@ -2,14 +2,16 @@
 
 ## Decisões Executivas
 
-- ENTRY consome capacidade lógica do setor, mas não ocupa vaga física
-- PARKED vincula a sessão a uma vaga física e marca a vaga como ocupada
-- O preço é calculado e congelado no momento do ENTRY
-- Uma placa não pode possuir mais de uma sessão ativa
-- Uma vaga não pode estar vinculada a mais de uma sessão ativa
-- A receita pertence ao setor alocado no ENTRY
-- O matching de coordenadas no PARKED será exato
-- A seleção de setor no ENTRY seguirá política determinística
+- `ENTRY` consome capacidade lógica do setor e reserva uma vaga física
+- `PARKED` confirma por coordenadas a vaga reservada na sessão ativa
+- o preço é calculado e congelado no momento do `ENTRY`
+- uma placa não pode possuir mais de uma sessão ativa
+- uma vaga não pode estar vinculada a mais de uma sessão ativa
+- a receita pertence ao setor alocado no `ENTRY`
+- o matching de coordenadas no `PARKED` é exato
+- a seleção de setor no `ENTRY` segue política determinística
+- duplicidade de webhook é garantida por unicidade persistida de `IdempotencyKey`
+- falha de bootstrap da garagem aborta a inicialização da aplicação
 
 ## Objetivo
 
@@ -17,79 +19,57 @@ Este documento define a interpretação de domínio e as decisões arquiteturais
 
 O objetivo é:
 
-- Garantir alinhamento com os requisitos explícitos do teste
-- Resolver ambiguidades presentes na especificação
-- Fornecer um modelo consistente entre os fluxos de ENTRY, PARKED, EXIT e REVENUE
+- garantir alinhamento com os requisitos explícitos do teste
+- resolver ambiguidades presentes na especificação sem alterar o contrato observável
+- fornecer um modelo consistente entre os fluxos de `ENTRY`, `PARKED`, `EXIT` e `REVENUE`
 
 O sistema é implementado como um modelo orientado a ciclo de vida baseado em eventos, em vez de um simples CRUD sobre vagas.
 
 ---
 
-## 1. Aderência à Especificação vs Interpretação
+## 1. Interpretação de Domínio
 
-A especificação do teste define:
-
-- Setores como divisões lógicas  
-- Vagas como entidades físicas identificadas por coordenadas  
-- Eventos ENTRY, PARKED e EXIT como parte do fluxo  
-
-Porém, há uma ambiguidade:
-
-- Afirma que uma vaga deve ser marcada como ocupada no ENTRY  
-- Também define um evento PARKED com coordenadas exatas  
-
-Para resolver essa inconsistência mantendo rastreabilidade e consistência, a seguinte interpretação foi adotada.
-
----
-
-## 2. Interpretação de Domínio
-
-### 2.1 Setores vs Vagas
+### 1.1 Setores vs Vagas
 
 **Sector** é uma unidade lógica usada para:
-- Controle de capacidade  
-- Precificação  
-- Agregação de receita  
+- controle de capacidade
+- precificação
+- agregação de receita
 
 **ParkingSpot** é uma entidade física:
-- Identificada por coordenadas  
-- Pertence a um setor  
+- identificada por coordenadas
+- pertence a um setor
 
 Uma sessão de estacionamento:
-- Pertence economicamente a um setor  
-- Pode ser vinculada fisicamente a uma vaga posteriormente  
+- pertence economicamente a um setor
+- reserva uma vaga física no `ENTRY`
+- confirma essa vaga no `PARKED`
 
 ---
 
-### 2.2 Responsabilidade dos Eventos
+## 2. Responsabilidade dos Eventos
 
-Para reconciliar a ambiguidade:
+### ENTRY
+- representa a entrada do veículo
+- valida se o sistema pode aceitar a entrada
+- seleciona um setor
+- reserva capacidade
+- reserva uma vaga física disponível do mesmo setor
+- calcula e congela o preço
+- abre uma sessão ativa
 
-#### ENTRY
-- Representa a entrada do veículo  
-- Valida se o sistema pode aceitar  
-- Seleciona um setor  
-- Reserva capacidade  
-- Calcula e congela o preço  
-- Abre uma sessão ativa  
+### PARKED
+- confirma o estacionamento físico
+- identifica a vaga pelas coordenadas
+- valida que a vaga informada corresponde à vaga reservada no `ENTRY`
+- registra o evento sem realocar a sessão
 
-#### PARKED
-- Confirma o estacionamento físico  
-- Identifica a vaga pelas coordenadas  
-- Vincula a sessão à vaga  
-- Marca a vaga como ocupada  
-
-#### EXIT
-- Representa a saída  
-- Calcula o valor final  
-- Encerra a sessão  
-- Libera capacidade do setor  
-- Libera a vaga  
-
-**Importante:**
-
-> Embora o enunciado diga que a vaga é ocupada no ENTRY, esta implementação trata ENTRY como reserva lógica e PARKED como ocupação física.  
-> Isso evita redundância e mantém consistência no fluxo.
+### EXIT
+- representa a saída
+- calcula o valor final
+- encerra a sessão
+- libera capacidade do setor
+- libera a vaga reservada
 
 ---
 
@@ -97,19 +77,17 @@ Para reconciliar a ambiguidade:
 
 ### 3.1 Regra de Controle
 
-- Capacidade é controlada por setor  
-- ENTRY consome capacidade lógica  
-- PARKED ocupa espaço físico  
+- capacidade é controlada por setor
+- `ENTRY` consome capacidade lógica
+- `ENTRY` também exige vaga física disponível
+- `PARKED` não altera capacidade nem reatribui vaga
 
 ### 3.2 Estacionamento cheio
 
-Um ENTRY é rejeitado quando:
+Um `ENTRY` é rejeitado quando:
 
-- Não há setor com capacidade disponível  
-
-Um setor está cheio quando:
-
-- Sessões ativas atingem `max_capacity`
+- não há setor com capacidade disponível
+- ou não há vaga física livre em nenhum setor elegível
 
 ---
 
@@ -119,12 +97,12 @@ O teste não define como escolher setor.
 
 Política adotada:
 
-- Selecionar setores com capacidade disponível  
-- Ordenar por menor ocupação  
-- Desempate por menor preço  
-- Desempate final por código  
+- selecionar setores com capacidade disponível e vaga física livre
+- ordenar por menor ocupação
+- desempate por menor preço
+- desempate final por código
 
-Isso é uma decisão de implementação.
+Isso mantém comportamento determinístico e previsível.
 
 ---
 
@@ -132,97 +110,94 @@ Isso é uma decisão de implementação.
 
 ### 5.1 Definição
 
-- Preço calculado no ENTRY  
-- Preço congelado para a sessão  
+- preço calculado no `ENTRY`
+- preço congelado para a sessão
 
-Seguindo:
+Seguindo a regra:
 
 > “Preço dinâmico na hora da entrada”
 
----
-
 ### 5.2 Regras
 
-- Ocupação < 25% → -10%  
-- Ocupação <= 50% → preço normal  
-- Ocupação <= 75% → +10%  
-- Ocupação <= 100% → +25%  
+- ocupação < 25% → -10%
+- ocupação <= 50% → preço normal
+- ocupação <= 75% → +10%
+- ocupação <= 100% → +25%
 
 Com 100%:
 
-- Não aceita ENTRY  
-
----
+- não aceita `ENTRY`
 
 ### 5.3 Cobrança
 
 Base:
 
-- Entrada  
-- Saída  
-- Preço congelado  
+- entrada
+- saída
+- preço congelado
 
 Regras:
 
-- Até 30 minutos → grátis  
-- Acima → cobrança por hora  
-- Sempre arredonda para cima  
+- até 30 minutos → grátis
+- acima → cobrança por hora
+- sempre arredonda para cima
 
 ---
 
-## 6. Restrições de Sessão
+## 6. Restrições Operacionais
 
-- Uma placa → no máximo uma sessão ativa  
-- Uma vaga → no máximo uma sessão ativa  
+- uma placa → no máximo uma sessão ativa
+- uma vaga → no máximo uma sessão ativa
+- duplicidade de webhook → no máximo um efeito persistido por `IdempotencyKey`
 
-Não está explícito no teste, mas evita inconsistência.
+Essas restrições são garantidas tanto por regra de domínio quanto por índices únicos no banco.
 
 ---
 
 ## 7. Regras do PARKED
 
-PARKED só é válido se:
+`PARKED` só é válido se:
 
-- Existe sessão ativa  
-- A vaga existe  
-- Não está ocupada  
-
-Regra adicional:
-
-- A vaga deve ser do mesmo setor  
+- existe sessão ativa
+- a sessão já possui vaga reservada
+- a vaga existe
+- a vaga encontrada pelas coordenadas é exatamente a vaga reservada
+- a vaga pertence ao mesmo setor da sessão
 
 ---
 
 ## 8. Regras do EXIT
 
-EXIT exige:
+`EXIT` exige:
 
-- Sessão ativa  
+- sessão ativa
 
 Comportamento:
 
-- Se tem vaga → libera  
-- Se não → encerra mesmo assim  
+- libera a capacidade do setor
+- libera a vaga reservada
+- encerra a sessão mesmo que `PARKED` nunca tenha sido recebido
 
-Permite ausência de PARKED.
+Isso permite fluxo tolerante à ausência do evento intermediário.
 
 ---
 
 ## 9. Coordenadas
 
-- Match exato de latitude/longitude  
+- match exato de latitude/longitude
 
-Simples e determinístico.
+Escolha simples e determinística, aderente ao payload do teste.
 
 ---
 
 ## 10. Receita
 
-Receita pertence ao setor do ENTRY.
+Receita pertence ao setor do `ENTRY`.
 
 Motivo:
 
-- O preço foi definido naquele momento  
+- o preço foi definido naquele momento
+- a sessão econômica nasce no setor reservado na entrada
 
 ---
 
@@ -230,55 +205,42 @@ Motivo:
 
 Cada evento registra:
 
-- Tipo  
-- Placa  
-- Timestamp  
-- Payload  
+- tipo
+- placa
+- timestamp
+- payload
+- chave de idempotência
 
 Objetivo:
 
-- Rastreabilidade  
-- Debug  
-- Validação  
+- rastreabilidade
+- debug
+- auditoria básica
+- absorção segura de duplicidade
 
 ---
 
 ## 12. Tempo
 
-- Tudo em UTC  
+- tudo em UTC
 
 ---
 
 ## 13. Erros
 
-- Erros de negócio → cliente  
-- Erros inesperados → servidor  
-
-Exemplos:
-
-- Sessão duplicada  
-- Lotação máxima  
-- PARKED inválido  
-- EXIT inválido  
-- Vaga ocupada  
+- erros de negócio → `422 Unprocessable Entity`
+- conflitos esperados de persistência → `409 Conflict`
+- duplicidade de webhook já persistido → `200 OK`
+- erros inesperados → `500 Internal Server Error`
 
 ---
 
-## 14. Fora de Escopo
+## 14. Bootstrap da Garagem
 
-- Tolerância de coordenadas  
-- Concorrência distribuída  
-- Retry de eventos  
-- Realocação  
-- Troca de vaga  
+A sincronização inicial da garagem é obrigatória para que o sistema funcione corretamente.
 
----
+Decisão adotada:
 
-## 15. Resumo
+- se o bootstrap falhar, a aplicação não continua em estado parcialmente funcional
 
-- ENTRY reserva capacidade  
-- PARKED ocupa vaga  
-- EXIT finaliza  
-- Preço congelado  
-- Receita por setor  
-- Consistência garantida  
+Isso evita aceitar requests sem configuração essencial carregada.

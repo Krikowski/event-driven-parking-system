@@ -29,11 +29,14 @@ public sealed class GarageBootstrapHostedService : IHostedService
             await syncUseCase.ExecuteAsync(cancellationToken);
 
             _logger.LogInformation("Garage configuration bootstrap completed successfully.");
-        } catch (Exception ex)
+        }
+        catch (Exception ex)
         {
-            _logger.LogError(
+            _logger.LogCritical(
                 ex,
-                "Garage configuration bootstrap failed. The application will continue running, but garage data may be unavailable until the issue is resolved.");
+                "Garage configuration bootstrap failed. Application startup will be aborted.");
+
+            throw;
         }
     }
 

@@ -15,26 +15,37 @@ public sealed class GarageConfigurationClient : IGarageConfigurationClient
 
     public async Task<GarageConfigurationDto> GetConfigurationAsync(CancellationToken cancellationToken = default)
     {
-        using var response = await _httpClient.GetAsync("garage", cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var responseContent = await TryReadResponseContentAsync(response, cancellationToken);
+            using var response = await _httpClient.GetAsync("garage", cancellationToken);
 
-            throw new InvalidOperationException(
-                $"Failed to fetch garage configuration. " +
-                $"Status code: {(int)response.StatusCode} ({response.StatusCode}). " +
-                $"Response: {responseContent}");
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseContent = await TryReadResponseContentAsync(response, cancellationToken);
+
+                throw new InvalidOperationException(
+                    $"Failed to fetch garage configuration. " +
+                    $"Status code: {(int)response.StatusCode} ({response.StatusCode}). " +
+                    $"Response: {responseContent}");
+            }
+
+            var configuration = await response.Content.ReadFromJsonAsync<GarageConfigurationDto>(cancellationToken: cancellationToken);
+
+            if (configuration is null)
+            {
+                throw new InvalidOperationException("Garage configuration response could not be deserialized.");
+            }
+
+            return configuration;
         }
-
-        var configuration = await response.Content.ReadFromJsonAsync<GarageConfigurationDto>(cancellationToken: cancellationToken);
-
-        if (configuration is null)
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new InvalidOperationException("Garage configuration response could not be deserialized.");
+            throw new InvalidOperationException("Timed out while fetching garage configuration.", ex);
         }
-
-        return configuration;
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException("HTTP error while fetching garage configuration.", ex);
+        }
     }
 
     private static async Task<string> TryReadResponseContentAsync(

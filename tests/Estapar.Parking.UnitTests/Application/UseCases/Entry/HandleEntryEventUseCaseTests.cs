@@ -17,6 +17,7 @@ public class HandleEntryEventUseCaseTests
     {
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: true);
         var sectorRepository = new FakeSectorRepository();
+        var parkingSpotRepository = new FakeParkingSpotRepository();
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -24,6 +25,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -50,6 +52,7 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(sectors);
+        var parkingSpotRepository = new FakeParkingSpotRepository();
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -57,6 +60,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -73,7 +77,7 @@ public class HandleEntryEventUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldSelectSectorWithLowestOccupancyPercentage()
+    public async Task ExecuteAsync_ShouldReservePhysicalSpotInSelectedSector()
     {
         var sectors = new[]
         {
@@ -83,6 +87,11 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(sectors);
+        var parkingSpotRepository = new FakeParkingSpotRepository(new[]
+        {
+            new ParkingSpot(1, "A", -23.561680m, -46.655980m),
+            new ParkingSpot(2, "B", -23.561684m, -46.655981m)
+        });
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -90,6 +99,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -100,12 +110,15 @@ public class HandleEntryEventUseCaseTests
         await useCase.ExecuteAsync(command);
 
         var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
+        var reservedSpot = Assert.Single(parkingSpotRepository.Spots.Where(spot => spot.IsOccupied));
 
         Assert.Equal("ZUL0001", createdSession.LicensePlate);
         Assert.Equal("B", createdSession.SectorCode);
+        Assert.Equal(2, createdSession.ParkingSpotId);
         Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
         Assert.Equal(5, sectors.Single(s => s.Code == "A").AllocatedCapacity);
         Assert.Equal(3, sectors.Single(s => s.Code == "B").AllocatedCapacity);
+        Assert.Equal(2, reservedSpot.Id);
         Assert.Single(vehicleEventRepository.AddedEvents);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
     }
@@ -121,6 +134,11 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(sectors);
+        var parkingSpotRepository = new FakeParkingSpotRepository(new[]
+        {
+            new ParkingSpot(1, "A", -23.561680m, -46.655980m),
+            new ParkingSpot(2, "B", -23.561684m, -46.655981m)
+        });
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -128,6 +146,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -140,6 +159,7 @@ public class HandleEntryEventUseCaseTests
         var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
 
         Assert.Equal("B", createdSession.SectorCode);
+        Assert.Equal(2, createdSession.ParkingSpotId);
         Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
         Assert.Equal(2, sectors.Single(s => s.Code == "A").AllocatedCapacity);
         Assert.Equal(3, sectors.Single(s => s.Code == "B").AllocatedCapacity);
@@ -158,6 +178,11 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(sectors);
+        var parkingSpotRepository = new FakeParkingSpotRepository(new[]
+        {
+            new ParkingSpot(1, "A", -23.561684m, -46.655981m),
+            new ParkingSpot(2, "B", -23.561685m, -46.655982m)
+        });
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -165,6 +190,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -177,6 +203,7 @@ public class HandleEntryEventUseCaseTests
         var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
 
         Assert.Equal("A", createdSession.SectorCode);
+        Assert.Equal(1, createdSession.ParkingSpotId);
         Assert.Equal(9.0m, createdSession.FrozenHourlyRate);
         Assert.Equal(3, sectors.Single(s => s.Code == "A").AllocatedCapacity);
         Assert.Equal(2, sectors.Single(s => s.Code == "B").AllocatedCapacity);
@@ -198,6 +225,10 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(new[] { sector });
+        var parkingSpotRepository = new FakeParkingSpotRepository(new[]
+        {
+            new ParkingSpot(1, "A", -23.561684m, -46.655981m)
+        });
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -205,6 +236,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -217,6 +249,7 @@ public class HandleEntryEventUseCaseTests
         var createdSession = Assert.Single(parkingSessionRepository.AddedSessions);
 
         Assert.Equal(expectedFrozenHourlyRate, createdSession.FrozenHourlyRate);
+        Assert.Equal(1, createdSession.ParkingSpotId);
         Assert.Single(vehicleEventRepository.AddedEvents);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
     }
@@ -228,6 +261,10 @@ public class HandleEntryEventUseCaseTests
 
         var parkingSessionRepository = new FakeParkingSessionRepository(existsActiveSession: false);
         var sectorRepository = new FakeSectorRepository(new[] { sector });
+        var parkingSpotRepository = new FakeParkingSpotRepository(new[]
+        {
+            new ParkingSpot(1, "A", -23.561684m, -46.655981m)
+        });
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var pricingPolicy = new PricingPolicy();
         var unitOfWork = new FakeUnitOfWork();
@@ -235,6 +272,7 @@ public class HandleEntryEventUseCaseTests
         var useCase = new HandleEntryEventUseCase(
             parkingSessionRepository,
             sectorRepository,
+            parkingSpotRepository,
             vehicleEventRepository,
             pricingPolicy,
             unitOfWork,
@@ -249,10 +287,12 @@ public class HandleEntryEventUseCaseTests
 
         Assert.Equal("ZUL0001", createdSession.LicensePlate);
         Assert.Equal("ZUL0001", createdEvent.LicensePlate);
+        Assert.Equal(1, createdSession.ParkingSpotId);
         Assert.Equal(ParkingEventType.Entry, createdEvent.EventType);
         Assert.Contains("\"event_type\":\"ENTRY\"", createdEvent.PayloadSnapshot);
         Assert.Contains("\"license_plate\":\" zul0001 \"", createdEvent.PayloadSnapshot);
         Assert.Contains("\"sector\":\"A\"", createdEvent.PayloadSnapshot);
+        Assert.Contains("\"spot_id\":1", createdEvent.PayloadSnapshot);
         Assert.Contains("\"frozen_hourly_rate\":9.0", createdEvent.PayloadSnapshot);
         Assert.Equal(1, sector.AllocatedCapacity);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
@@ -335,6 +375,55 @@ public class HandleEntryEventUseCaseTests
         public Task AddRangeAsync(IEnumerable<Sector> sectors, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class FakeParkingSpotRepository : IParkingSpotRepository
+    {
+        public FakeParkingSpotRepository(IEnumerable<ParkingSpot>? spots = null)
+        {
+            Spots = spots?.ToList() ?? new List<ParkingSpot>();
+        }
+
+        public List<ParkingSpot> Spots { get; }
+
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Spots.Count > 0);
+        }
+
+        public Task<ParkingSpot?> GetByIdAsync(int parkingSpotId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Spots.FirstOrDefault(spot => spot.Id == parkingSpotId));
+        }
+
+        public Task<ParkingSpot?> GetByCoordinatesAsync(decimal latitude, decimal longitude, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Spots.FirstOrDefault(spot => spot.Latitude == latitude && spot.Longitude == longitude));
+        }
+
+        public Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(string sectorCode, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Spots.Where(spot => spot.SectorCode == sectorCode && !spot.IsOccupied)
+                    .OrderBy(spot => spot.Id)
+                    .FirstOrDefault());
+        }
+
+        public Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(string sectorCode, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ParkingSpot> parkingSpots = Spots
+                .Where(spot => spot.SectorCode == sectorCode)
+                .OrderBy(spot => spot.Id)
+                .ToList();
+
+            return Task.FromResult(parkingSpots);
+        }
+
+        public Task AddRangeAsync(IEnumerable<ParkingSpot> parkingSpots, CancellationToken cancellationToken = default)
+        {
+            Spots.AddRange(parkingSpots);
+            return Task.CompletedTask;
         }
     }
 
