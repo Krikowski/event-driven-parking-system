@@ -14,12 +14,14 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
 {
     private readonly IParkingSessionRepository _parkingSessionRepository;
     private readonly ISectorRepository _sectorRepository;
+    private readonly IParkingSpotRepository _parkingSpotRepository;
     private readonly IPricingPolicy _pricingPolicy;
     private readonly ILogger<HandleEntryEventUseCase> _logger;
 
     public HandleEntryEventUseCase(
         IParkingSessionRepository parkingSessionRepository,
         ISectorRepository sectorRepository,
+        IParkingSpotRepository parkingSpotRepository,
         IVehicleEventRepository vehicleEventRepository,
         IPricingPolicy pricingPolicy,
         IUnitOfWork unitOfWork,
@@ -28,6 +30,7 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
     {
         _parkingSessionRepository = parkingSessionRepository;
         _sectorRepository = sectorRepository;
+        _parkingSpotRepository = parkingSpotRepository;
         _pricingPolicy = pricingPolicy;
         _logger = logger;
     }
@@ -68,11 +71,20 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         }
 
         var sectors = await _sectorRepository.GetAllAsync(cancellationToken);
-        var selectedSector = SelectSectorForEntry(sectors);
+        var selectedSector = await SelectSectorForEntryAsync(sectors, cancellationToken);
 
         if (selectedSector is null)
         {
             throw new DomainException("Parking lot is full.");
+        }
+
+        var availableParkingSpot = await _parkingSpotRepository.GetFirstAvailableBySectorCodeAsync(
+            selectedSector.Code,
+            cancellationToken);
+
+        if (availableParkingSpot is null)
+        {
+            throw new DomainException($"No available parking spot was found for sector '{selectedSector.Code}'.");
         }
 
         var occupancyPercentageAtEntry = selectedSector.CalculateOccupancyPercentage();
@@ -80,12 +92,15 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         var frozenHourlyRate = selectedSector.BasePrice * occupancyMultiplier;
 
         selectedSector.ConsumeCapacity();
+        availableParkingSpot.Occupy();
 
         var parkingSession = new ParkingSession(
             normalizedLicensePlate,
             selectedSector.Code,
             command.EntryTimeUtc,
             frozenHourlyRate);
+
+        parkingSession.AssignParkingSpot(availableParkingSpot.Id, availableParkingSpot.SectorCode);
 
         var vehicleEvent = VehicleEventFactory.Create(
             idempotencyKey,
@@ -97,6 +112,7 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
                 license_plate = command.LicensePlate,
                 entry_time = command.EntryTimeUtc,
                 sector = selectedSector.Code,
+                spot_id = availableParkingSpot.Id,
                 frozen_hourly_rate = frozenHourlyRate
             });
 
@@ -105,19 +121,33 @@ public sealed class HandleEntryEventUseCase : WebhookUseCaseBase, IHandleEntryEv
         await SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector}.",
+            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector} with reserved spot {SpotId}.",
             "ENTRY",
             normalizedLicensePlate,
-            selectedSector.Code);
+            selectedSector.Code,
+            availableParkingSpot.Id);
     }
 
-    private static Sector? SelectSectorForEntry(IEnumerable<Sector> sectors)
+    private async Task<Sector?> SelectSectorForEntryAsync(
+        IEnumerable<Sector> sectors,
+        CancellationToken cancellationToken)
     {
-        return sectors
-            .Where(sector => sector.HasAvailableCapacity)
-            .OrderBy(sector => sector.CalculateOccupancyPercentage())
-            .ThenBy(sector => sector.BasePrice)
-            .ThenBy(sector => sector.Code, StringComparer.Ordinal)
-            .FirstOrDefault();
+        foreach (var sector in sectors
+                     .Where(sector => sector.HasAvailableCapacity)
+                     .OrderBy(sector => sector.CalculateOccupancyPercentage())
+                     .ThenBy(sector => sector.BasePrice)
+                     .ThenBy(sector => sector.Code, StringComparer.Ordinal))
+        {
+            var availableParkingSpot = await _parkingSpotRepository.GetFirstAvailableBySectorCodeAsync(
+                sector.Code,
+                cancellationToken);
+
+            if (availableParkingSpot is not null)
+            {
+                return sector;
+            }
+        }
+
+        return null;
     }
 }

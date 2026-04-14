@@ -362,6 +362,15 @@ public class HandleExitEventUseCaseTests
             return Task.FromResult(_parkingSpot);
         }
 
+        public Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(
+            string sectorCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_parkingSpot is not null && _parkingSpot.SectorCode == sectorCode && !_parkingSpot.IsOccupied
+                ? _parkingSpot
+                : null);
+        }
+
         public Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(
             string sectorCode,
             CancellationToken cancellationToken = default)

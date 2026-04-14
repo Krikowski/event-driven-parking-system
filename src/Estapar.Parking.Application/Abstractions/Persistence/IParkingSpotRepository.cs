@@ -10,6 +10,8 @@ public interface IParkingSpotRepository
 
     Task<ParkingSpot?> GetByCoordinatesAsync(decimal latitude, decimal longitude, CancellationToken cancellationToken = default);
 
+    Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(string sectorCode, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(string sectorCode, CancellationToken cancellationToken = default);
 
     Task AddRangeAsync(IEnumerable<ParkingSpot> parkingSpots, CancellationToken cancellationToken = default);

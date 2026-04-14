@@ -2,6 +2,7 @@
 
 using Estapar.Parking.Api.Models.Responses;
 using Estapar.Parking.Domain.Exceptions;
+using Estapar.Parking.Infrastructure.Persistence.Exceptions;
 
 namespace Estapar.Parking.Api.Middlewares;
 
@@ -23,7 +24,33 @@ public sealed class ExceptionHandlingMiddleware
         try
         {
             await _next(context);
-        } catch (DomainException ex)
+        }
+        catch (PersistenceConflictException ex) when (ex.ConflictType == PersistenceConflictType.DuplicateWebhookEvent)
+        {
+            _logger.LogInformation(
+                ex,
+                "Duplicate webhook event ignored. TraceId: {TraceId}",
+                context.TraceIdentifier);
+
+            context.Response.StatusCode = StatusCodes.Status200OK;
+        }
+        catch (PersistenceConflictException ex) when (
+            ex.ConflictType == PersistenceConflictType.ActiveSessionAlreadyExists ||
+            ex.ConflictType == PersistenceConflictType.ParkingSpotAlreadyAssigned ||
+            ex.ConflictType == PersistenceConflictType.UnknownUniqueConstraint)
+        {
+            _logger.LogWarning(
+                ex,
+                "Persistence conflict occurred. TraceId: {TraceId}",
+                context.TraceIdentifier);
+
+            await WriteResponseAsync(
+                context,
+                StatusCodes.Status409Conflict,
+                "persistence_conflict",
+                "A conflicting state was detected while processing the request.");
+        }
+        catch (DomainException ex)
         {
             _logger.LogWarning(
                 ex,
@@ -32,10 +59,11 @@ public sealed class ExceptionHandlingMiddleware
 
             await WriteResponseAsync(
                 context,
-                StatusCodes.Status400BadRequest,
+                StatusCodes.Status422UnprocessableEntity,
                 "domain_error",
                 ex.Message);
-        } catch (Exception ex)
+        }
+        catch (Exception ex)
         {
             _logger.LogError(
                 ex,

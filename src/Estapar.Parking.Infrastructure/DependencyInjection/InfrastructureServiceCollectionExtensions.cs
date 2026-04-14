@@ -31,8 +31,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddDbContext<ParkingDbContext>(options =>
             options.UseSqlServer(connectionString));
 
-        services.AddHttpClient<IGarageConfigurationClient, GarageConfigurationClient>(client => {
+        services.AddHttpClient<IGarageConfigurationClient, GarageConfigurationClient>(client =>
+        {
             client.BaseAddress = new Uri(garageApiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
         });
 
         services.AddScoped<ISectorRepository, SectorRepository>();

@@ -246,6 +246,13 @@ public class SyncGarageConfigurationUseCaseTests
             return Task.FromResult<ParkingSpot?>(null);
         }
 
+        public Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(
+            string sectorCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ParkingSpot?>(null);
+        }
+
         public Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(
             string sectorCode,
             CancellationToken cancellationToken = default)

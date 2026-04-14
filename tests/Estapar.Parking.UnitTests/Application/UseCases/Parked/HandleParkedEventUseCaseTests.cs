@@ -41,7 +41,7 @@ public class HandleParkedEventUseCaseTests
     [Fact]
     public async Task ExecuteAsync_ShouldThrowDomainException_WhenParkingSpotIsNotFound()
     {
-        var activeSession = CreateActiveSession("ZUL0001", "A");
+        var activeSession = CreateReservedSession("ZUL0001", "A", parkingSpotId: 1);
 
         var parkingSessionRepository = new FakeParkingSessionRepository(activeSession);
         var parkingSpotRepository = new FakeParkingSpotRepository(parkingSpot: null);
@@ -63,19 +63,23 @@ public class HandleParkedEventUseCaseTests
         var exception = await Assert.ThrowsAsync<DomainException>(() => useCase.ExecuteAsync(command));
 
         Assert.Equal("Parking spot was not found for the provided coordinates.", exception.Message);
-        Assert.Null(activeSession.ParkingSpotId);
+        Assert.Equal(1, activeSession.ParkingSpotId);
         Assert.Empty(vehicleEventRepository.AddedEvents);
         Assert.Equal(0, unitOfWork.SaveChangesCallCount);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldThrowDomainException_WhenParkingSpotIsAlreadyOccupied()
+    public async Task ExecuteAsync_ShouldThrowDomainException_WhenParkingSpotDoesNotMatchReservedSpot()
     {
-        var activeSession = CreateActiveSession("ZUL0001", "A");
-        var occupiedSpot = CreateOccupiedParkingSpot(id: 1, sectorCode: "A");
+        var activeSession = CreateReservedSession("ZUL0001", "A", parkingSpotId: 1);
+        var parkingSpot = new ParkingSpot(
+            id: 2,
+            sectorCode: "A",
+            latitude: -23.561684m,
+            longitude: -46.655981m);
 
         var parkingSessionRepository = new FakeParkingSessionRepository(activeSession);
-        var parkingSpotRepository = new FakeParkingSpotRepository(occupiedSpot);
+        var parkingSpotRepository = new FakeParkingSpotRepository(parkingSpot);
         var vehicleEventRepository = new FakeVehicleEventRepository();
         var unitOfWork = new FakeUnitOfWork();
 
@@ -93,8 +97,8 @@ public class HandleParkedEventUseCaseTests
 
         var exception = await Assert.ThrowsAsync<DomainException>(() => useCase.ExecuteAsync(command));
 
-        Assert.Equal("Parking spot is already occupied.", exception.Message);
-        Assert.Null(activeSession.ParkingSpotId);
+        Assert.Equal("Provided parking spot does not match the reserved spot for this session.", exception.Message);
+        Assert.Equal(1, activeSession.ParkingSpotId);
         Assert.Empty(vehicleEventRepository.AddedEvents);
         Assert.Equal(0, unitOfWork.SaveChangesCallCount);
     }
@@ -102,7 +106,7 @@ public class HandleParkedEventUseCaseTests
     [Fact]
     public async Task ExecuteAsync_ShouldThrowDomainException_WhenParkingSpotBelongsToDifferentSector()
     {
-        var activeSession = CreateActiveSession("ZUL0001", "A");
+        var activeSession = CreateReservedSession("ZUL0001", "A", parkingSpotId: 1);
         var parkingSpot = new ParkingSpot(
             id: 1,
             sectorCode: "B",
@@ -129,21 +133,21 @@ public class HandleParkedEventUseCaseTests
         var exception = await Assert.ThrowsAsync<DomainException>(() => useCase.ExecuteAsync(command));
 
         Assert.Equal("Parking spot sector does not match session sector.", exception.Message);
-        Assert.Null(activeSession.ParkingSpotId);
-        Assert.False(parkingSpot.IsOccupied);
+        Assert.Equal(1, activeSession.ParkingSpotId);
         Assert.Empty(vehicleEventRepository.AddedEvents);
         Assert.Equal(0, unitOfWork.SaveChangesCallCount);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldAssignParkingSpotAndPersistEvent_WhenAssociationIsSuccessful()
+    public async Task ExecuteAsync_ShouldPersistEvent_WhenReservedSpotIsConfirmed()
     {
-        var activeSession = CreateActiveSession("ZUL0001", "A");
+        var activeSession = CreateReservedSession("ZUL0001", "A", parkingSpotId: 1);
         var parkingSpot = new ParkingSpot(
             id: 1,
             sectorCode: "A",
             latitude: -23.561684m,
             longitude: -46.655981m);
+        parkingSpot.Occupy();
 
         var parkingSessionRepository = new FakeParkingSessionRepository(activeSession);
         var parkingSpotRepository = new FakeParkingSpotRepository(parkingSpot);
@@ -177,26 +181,17 @@ public class HandleParkedEventUseCaseTests
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
     }
 
-    private static ParkingSession CreateActiveSession(string licensePlate, string sectorCode)
+    private static ParkingSession CreateReservedSession(string licensePlate, string sectorCode, int parkingSpotId)
     {
-        return new ParkingSession(
+        var session = new ParkingSession(
             licensePlate,
             sectorCode,
             CreateUtcDate(2025, 1, 1, 12, 0, 0),
             10m);
-    }
 
-    private static ParkingSpot CreateOccupiedParkingSpot(int id, string sectorCode)
-    {
-        var spot = new ParkingSpot(
-            id,
-            sectorCode,
-            -23.561684m,
-            -46.655981m);
+        session.AssignParkingSpot(parkingSpotId, sectorCode);
 
-        spot.Occupy();
-
-        return spot;
+        return session;
     }
 
     private static DateTime CreateUtcDate(int year, int month, int day, int hour, int minute, int second)
@@ -265,6 +260,11 @@ public class HandleParkedEventUseCaseTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_parkingSpot);
+        }
+
+        public Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(string sectorCode, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ParkingSpot?>(null);
         }
 
         public Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(

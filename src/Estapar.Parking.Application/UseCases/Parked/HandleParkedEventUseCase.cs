@@ -62,6 +62,12 @@ public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParked
             return;
         }
 
+        if (!parkingSession.ParkingSpotId.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"Active parking session for license plate '{normalizedLicensePlate}' does not have a reserved parking spot.");
+        }
+
         var parkingSpot = await _parkingSpotRepository.GetByCoordinatesAsync(
             command.Latitude,
             command.Longitude,
@@ -72,18 +78,15 @@ public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParked
             throw new DomainException("Parking spot was not found for the provided coordinates.");
         }
 
-        if (parkingSpot.IsOccupied)
+        if (parkingSpot.Id != parkingSession.ParkingSpotId.Value)
         {
-            throw new DomainException("Parking spot is already occupied.");
+            throw new DomainException("Provided parking spot does not match the reserved spot for this session.");
         }
 
         if (parkingSpot.SectorCode != parkingSession.SectorCode)
         {
             throw new DomainException("Parking spot sector does not match session sector.");
         }
-
-        parkingSpot.Occupy();
-        parkingSession.AssignParkingSpot(parkingSpot.Id, parkingSpot.SectorCode);
 
         var vehicleEvent = VehicleEventFactory.Create(
             idempotencyKey,
@@ -103,7 +106,7 @@ public sealed class HandleParkedEventUseCase : WebhookUseCaseBase, IHandleParked
         await SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector} with spot {SpotId}.",
+            "Webhook event {EventType} processed successfully for license plate {LicensePlate} in sector {Sector} with confirmed spot {SpotId}.",
             "PARKED",
             normalizedLicensePlate,
             parkingSession.SectorCode,

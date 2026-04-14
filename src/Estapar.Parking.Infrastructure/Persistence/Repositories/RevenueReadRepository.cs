@@ -1,5 +1,6 @@
 ﻿using Estapar.Parking.Application.Abstractions.Persistence;
-using Estapar.Parking.Domain.Enums;
+using Estapar.Parking.Infrastructure.Persistence;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Estapar.Parking.Infrastructure.Persistence.Repositories;
@@ -21,14 +22,17 @@ public sealed class RevenueReadRepository : IRevenueReadRepository
         var startOfDayUtc = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var endOfDayUtc = startOfDayUtc.AddDays(1);
 
-        return await _dbContext.ParkingSessions
+        var chargedAmounts = await _dbContext.Set<Domain.Entities.ParkingSession>()
             .AsNoTracking()
-            .Where(session =>
-                session.SectorCode == sectorCode &&
-                session.Status == ParkingSessionStatus.Closed &&
-                session.ExitTimeUtc.HasValue &&
-                session.ExitTimeUtc.Value >= startOfDayUtc &&
-                session.ExitTimeUtc.Value < endOfDayUtc)
-            .SumAsync(session => session.ChargedAmount ?? 0m, cancellationToken);
+            .Where(parkingSession =>
+                parkingSession.SectorCode == sectorCode &&
+                parkingSession.ExitTimeUtc.HasValue &&
+                parkingSession.ExitTimeUtc.Value >= startOfDayUtc &&
+                parkingSession.ExitTimeUtc.Value < endOfDayUtc &&
+                parkingSession.ChargedAmount.HasValue)
+            .Select(parkingSession => parkingSession.ChargedAmount!.Value)
+            .ToListAsync(cancellationToken);
+
+        return chargedAmounts.Sum();
     }
 }

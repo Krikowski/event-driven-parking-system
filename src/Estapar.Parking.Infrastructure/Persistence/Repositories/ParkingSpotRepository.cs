@@ -39,6 +39,16 @@ public sealed class ParkingSpotRepository : IParkingSpotRepository
                 cancellationToken);
     }
 
+    public Task<ParkingSpot?> GetFirstAvailableBySectorCodeAsync(
+        string sectorCode,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ParkingSpots
+            .Where(parkingSpot => parkingSpot.SectorCode == sectorCode && !parkingSpot.IsOccupied)
+            .OrderBy(parkingSpot => parkingSpot.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<ParkingSpot>> GetBySectorCodeAsync(
         string sectorCode,
         CancellationToken cancellationToken = default)
