@@ -1,6 +1,8 @@
-﻿using Estapar.Parking.Api.Models.Responses;
+﻿using Estapar.Parking.Api.Models.Requests;
+using Estapar.Parking.Api.Models.Responses;
 using Estapar.Parking.Application.Contracts.Revenue;
 using Estapar.Parking.Application.UseCases.Revenue;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace Estapar.Parking.Api.Controllers;
@@ -24,23 +26,21 @@ public sealed class RevenueController : ControllerBase
         [FromQuery(Name = "date")] DateOnly? date,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(sectorCode))
-        {
-            return BadRequest("Sector is required.");
-        }
+        var validationError = RevenueQueryRequestValidator.Validate(sectorCode, date);
 
-        if (!date.HasValue)
+        if (validationError is not null)
         {
-            return BadRequest("Date is required.");
+            return BadRequest(validationError);
         }
 
         var query = new GetRevenueQuery(
-            sectorCode,
-            date.Value);
+            sectorCode!,
+            date!.Value);
 
         var result = await _getRevenueUseCase.ExecuteAsync(query, cancellationToken);
 
-        var response = new RevenueResponseModel {
+        var response = new RevenueResponseModel
+        {
             Amount = result.Amount,
             Currency = result.Currency,
             Timestamp = result.GeneratedAtUtc
